@@ -231,7 +231,7 @@ function TopSellingTable({ items }: { items: TopSellingItem[] }) {
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
-                  <ItemIcon itemId={item.itemId} size={28} />
+                  <ItemIcon itemId={item.itemId} size={40} />
                   <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
                 </div>
               </TableCell>
@@ -296,7 +296,7 @@ function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
-                  <ItemIcon itemId={item.itemId} size={28} />
+                  <ItemIcon itemId={item.itemId} size={40} />
                   <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
                 </div>
               </TableCell>
@@ -391,7 +391,7 @@ function TrendingChart({ items }: { items: TrendingItem[] }) {
               <div key={item.itemId} className="p-3 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <ItemIcon itemId={item.itemId} size={28} />
+                    <ItemIcon itemId={item.itemId} size={40} />
                     <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
                     <Badge variant={getTierBadgeVariant(item.name)} className="text-xs">{getTierLabel(item.name)}</Badge>
                     <Badge variant="outline" className="text-xs">{item.cityCount} villes</Badge>
@@ -443,7 +443,7 @@ function FlipOpportunitiesTable({ items }: { items: FlipOpportunity[] }) {
           {items.map((item, idx) => (
             <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
-              <TableCell><div className="flex items-center gap-2"><ItemIcon itemId={item.itemId} size={28} /><span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span></div></TableCell>
+              <TableCell><div className="flex items-center gap-2"><ItemIcon itemId={item.itemId} size={40} /><span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span></div></TableCell>
               <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-sky-400 border-sky-500/30">{item.buyCity}</Badge></TableCell>
               <TableCell className="text-right font-mono text-amber-400">{formatSilver(item.buyPrice)}</TableCell>
               <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-emerald-400 border-emerald-500/30">{item.sellCity}</Badge></TableCell>
@@ -487,7 +487,7 @@ function RefineOpportunitiesTable({ items }: { items: RefineOpportunity[] }) {
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
-                  <ItemIcon itemId={item.itemId} size={28} />
+                  <ItemIcon itemId={item.itemId} size={40} />
                   <div>
                     <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
                     <span className="text-xs text-muted-foreground ml-1">T{item.tier}</span>
@@ -543,7 +543,7 @@ function TransportOpportunitiesTable({ items }: { items: TransportOpportunity[] 
           {items.map((item, idx) => (
             <TableRow key={`${item.itemId}-${item.fromCity}-${item.toCity}`} className="border-border/30 hover:bg-muted/50 transition-colors">
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
-              <TableCell><div className="flex items-center gap-2"><ItemIcon itemId={item.itemId} size={28} /><span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span></div></TableCell>
+              <TableCell><div className="flex items-center gap-2"><ItemIcon itemId={item.itemId} size={40} /><span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span></div></TableCell>
               <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-sky-400 border-sky-500/30">{item.fromCity}</Badge></TableCell>
               <TableCell className="text-right font-mono text-amber-400 hidden sm:table-cell">{formatSilver(item.buyPrice)}</TableCell>
               <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-emerald-400 border-emerald-500/30">{item.toCity}</Badge></TableCell>
