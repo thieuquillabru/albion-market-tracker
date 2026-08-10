@@ -52,42 +52,44 @@ const CITIES = ['Bridgewatch', 'Caerleon', 'Fort Sterling', 'Lymhurst', 'Martloc
 const BLACK_MARKET_CITY = 'Caerleon'
 const NON_BM_CITIES = CITIES.filter(c => c !== BLACK_MARKET_CITY)
 
+// Only items confirmed to have real market data via Albion Online Data Project API.
+// Weapons, capes (named), food, mounts, journals, books, runic mats, farm items all return 0.
 const TRACKED_ITEMS = [
-  'T8_ARMORED_SWORD','T8_BROADSWORD','T8_CLAYMORE','T8_DUAL_SWORDS',
-  'T8_FIRE_STAFF','T8_FROST_STAFF','T8_HOLY_STAFF','T8_ARCANESTAFF','T8_NATURE_STAFF',
-  'T8_BOW','T8_CROSSBOW','T8_LONGBOW','T8_WARBOW',
-  'T8_DAGGER','T8_KATAR','T8_SHADOW_DAGGER',
-  'T8_HAMMER','T8_MACE','T8_BATTLEAXE','T8_HALBERD','T8_QUARTERSTAFF','T8_ESCIMITAR',
-  'T8_BAG','T8_CAPE','T8_HEAD_CLOTH_SET1','T8_HEAD_LEATHER_SET1','T8_HEAD_PLATE_SET1',
-  'T8_CAPEMAGE','T8_CAPERANGER','T8_CAPEMERCENARY','T8_CAPEINQUISITOR','T8_CAPEVALKYRIE','T8_CAPEHELL',
-  'T7_ARMORED_SWORD','T7_BROADSWORD','T7_CLAYMORE',
-  'T7_FIRE_STAFF','T7_FROST_STAFF','T7_HOLY_STAFF','T7_ARCANESTAFF','T7_NATURE_STAFF',
-  'T7_BOW','T7_CROSSBOW','T7_LONGBOW',
-  'T7_DAGGER','T7_HAMMER','T7_MACE','T7_BATTLEAXE',
-  'T7_BAG','T7_HEAD_CLOTH_SET1','T7_HEAD_LEATHER_SET1','T7_HEAD_PLATE_SET1',
-  'T6_BAG','T6_ARMORED_SWORD','T6_FIRE_STAFF','T6_BOW','T6_DAGGER','T6_HAMMER',
-  'T8_ORE','T8_WOOD','T8_FIBER','T8_HIDE','T8_ROCK',
-  'T7_ORE','T7_WOOD','T7_FIBER','T7_HIDE','T7_ROCK',
-  'T6_ORE','T6_WOOD','T6_FIBER','T6_HIDE',
-  'T5_ORE','T5_WOOD','T5_FIBER','T5_HIDE',
-  'T8_METALBAR','T8_PLANKS','T8_CLOTH','T8_LEATHER','T8_STONEBLOCK',
-  'T7_METALBAR','T7_PLANKS','T7_CLOTH','T7_LEATHER','T7_STONEBLOCK',
-  'T8_RMETALBAR','T8_RPLANKS','T8_RCLOTH','T8_RLEATHER','T8_RSTONEBLOCK',
-  'T8_POTION_HEAL','T8_POTION_ENERGY','T8_POTION_FLEX',
-  'T7_POTION_HEAL','T7_POTION_ENERGY',
-  'T8_PORK_RIPE','T8_CHICKEN_RIPE','T8_BEET_RIPE','T8_CABBAGE_RIPE','T8_POTATO_RIPE',
-  'T7_PORK_RIPE','T7_CHICKEN_RIPE','T7_BEET_RIPE','T7_CABBAGE_RIPE',
-  'RUNE_S3','RUNE_S4','RUNE_S5','SOUL_S3','SOUL_S4','SOUL_S5','RELIC_S3','RELIC_S4','RELIC_S5',
-  'T8_AVALONIAN_SWORD','T8_AVALONIAN_FIRE','T8_AVALONIAN_FROST','T8_AVALONIAN_HOLY','T8_AVALONIAN_ARCANE',
-  'T8_AVALONIAN_NATURE','T8_AVALONIAN_BOW','T8_AVALONIAN_CROSSBOW',
-  'T8_ROYAL_SWORD','T8_ROYAL_FIRE','T8_ROYAL_FROST','T8_ROYAL_BOW',
-  'T8_ARTIFACT_SWORD','T8_ARTIFACT_FIRE','T8_ARTIFACT_FROST','T8_ARTIFACT_HOLY','T8_ARTIFACT_ARCANE',
-  'T8_ARTIFACT_NATURE','T8_ARTIFACT_BOW','T8_ARTIFACT_CROSSBOW','T8_ARTIFACT_DAGGER','T8_ARTIFACT_HAMMER',
-  'T8_BOOK_UNDEAD','T8_BOOK_DEMON','T8_BOOK_MORGANA','T8_BOOK_AVALON',
-  'T8_JOURNAL_WARRIOR','T8_JOURNAL_MAGE','T8_JOURNAL_HUNTER',
-  'T7_JOURNAL_WARRIOR','T7_JOURNAL_MAGE','T7_JOURNAL_HUNTER',
-  'MOUNT_HORSE','MOUNT_ARMORED_HORSE','MOUNT_OX','MOUNT_STAG',
-  'T8_FARM_FOCUS','T7_FARM_FOCUS',
+  // --- Resources T4-T8 ---
+  'T4_ORE','T5_ORE','T6_ORE','T7_ORE','T8_ORE',
+  'T4_WOOD','T5_WOOD','T6_WOOD','T7_WOOD','T8_WOOD',
+  'T4_FIBER','T5_FIBER','T6_FIBER','T7_FIBER','T8_FIBER',
+  'T4_HIDE','T5_HIDE','T6_HIDE','T7_HIDE','T8_HIDE',
+  'T4_ROCK','T5_ROCK','T6_ROCK','T7_ROCK','T8_ROCK',
+  // --- Materials T4-T8 ---
+  'T4_METALBAR','T5_METALBAR','T6_METALBAR','T7_METALBAR','T8_METALBAR',
+  'T4_PLANKS','T5_PLANKS','T6_PLANKS','T7_PLANKS','T8_PLANKS',
+  'T4_CLOTH','T5_CLOTH','T6_CLOTH','T7_CLOTH','T8_CLOTH',
+  'T4_LEATHER','T5_LEATHER','T6_LEATHER','T7_LEATHER','T8_LEATHER',
+  'T4_STONEBLOCK','T5_STONEBLOCK','T6_STONEBLOCK','T7_STONEBLOCK','T8_STONEBLOCK',
+  // --- Bags T4-T8 ---
+  'T4_BAG','T5_BAG','T6_BAG','T7_BAG','T8_BAG',
+  // --- Capes T4-T8 ---
+  'T4_CAPE','T5_CAPE','T6_CAPE','T7_CAPE','T8_CAPE',
+  // --- Armor Cloth T4-T8 ---
+  'T4_ARMOR_CLOTH_SET1','T5_ARMOR_CLOTH_SET1','T6_ARMOR_CLOTH_SET1','T7_ARMOR_CLOTH_SET1','T8_ARMOR_CLOTH_SET1',
+  'T4_SHOES_CLOTH_SET1','T5_SHOES_CLOTH_SET1','T6_SHOES_CLOTH_SET1','T7_SHOES_CLOTH_SET1','T8_SHOES_CLOTH_SET1',
+  'T4_HEAD_CLOTH_SET1','T5_HEAD_CLOTH_SET1','T6_HEAD_CLOTH_SET1','T7_HEAD_CLOTH_SET1','T8_HEAD_CLOTH_SET1',
+  // --- Armor Leather T4-T8 ---
+  'T4_ARMOR_LEATHER_SET1','T5_ARMOR_LEATHER_SET1','T6_ARMOR_LEATHER_SET1','T7_ARMOR_LEATHER_SET1','T8_ARMOR_LEATHER_SET1',
+  'T4_SHOES_LEATHER_SET1','T5_SHOES_LEATHER_SET1','T6_SHOES_LEATHER_SET1','T7_SHOES_LEATHER_SET1','T8_SHOES_LEATHER_SET1',
+  'T4_HEAD_LEATHER_SET1','T5_HEAD_LEATHER_SET1','T6_HEAD_LEATHER_SET1','T7_HEAD_LEATHER_SET1','T8_HEAD_LEATHER_SET1',
+  // --- Armor Plate T4-T8 ---
+  'T4_ARMOR_PLATE_SET1','T5_ARMOR_PLATE_SET1','T6_ARMOR_PLATE_SET1','T7_ARMOR_PLATE_SET1','T8_ARMOR_PLATE_SET1',
+  'T4_SHOES_PLATE_SET1','T5_SHOES_PLATE_SET1','T6_SHOES_PLATE_SET1','T7_SHOES_PLATE_SET1','T8_SHOES_PLATE_SET1',
+  'T4_HEAD_PLATE_SET1','T5_HEAD_PLATE_SET1','T6_HEAD_PLATE_SET1','T7_HEAD_PLATE_SET1',
+  // --- Runes / Souls / Relics T4-T8 ---
+  'T4_RUNE','T5_RUNE','T6_RUNE','T7_RUNE','T8_RUNE',
+  'T4_SOUL','T5_SOUL','T6_SOUL','T7_SOUL','T8_SOUL',
+  'T4_RELIC','T5_RELIC','T6_RELIC','T7_RELIC','T8_RELIC',
+  // --- Potions (T4 and T6 confirmed with data) ---
+  'T4_POTION_HEAL','T6_POTION_HEAL',
+  'T4_POTION_ENERGY','T6_POTION_ENERGY',
 ]
 
 const REFINE_CHAINS = [
@@ -108,43 +110,22 @@ const CITY_REFINE_BONUS: Record<string, string> = {
 // ============================================================
 
 const FR_NAMES: Record<string, string> = {
-  'ARMORED_SWORD': 'Épée blindée', 'BROADSWORD': 'Épée à deux mains', 'CLAYMORE': 'Claymore',
-  'DUAL_SWORDS': 'Épées doubles', 'ESCIMITAR': 'Cimeterre',
-  'AVALONIAN_SWORD': 'Épée avalonienne', 'ROYAL_SWORD': 'Épée royale', 'ARTIFACT_SWORD': "Épée d'artéfact",
-  'FIRE_STAFF': 'Bâton de feu', 'FROST_STAFF': 'Bâton de givre', 'HOLY_STAFF': 'Bâton sacré',
-  'ARCANESTAFF': 'Bâton arcanique', 'NATURE_STAFF': 'Bâton de nature',
-  'AVALONIAN_FIRE': 'Bâton de feu avalonien', 'AVALONIAN_FROST': 'Bâton de givre avalonien',
-  'AVALONIAN_HOLY': 'Bâton sacré avalonien', 'AVALONIAN_ARCANE': 'Bâton arcanique avalonien',
-  'AVALONIAN_NATURE': 'Bâton de nature avalonien',
-  'ROYAL_FIRE': 'Bâton de feu royal', 'ROYAL_FROST': 'Bâton de givre royal',
-  'ARTIFACT_FIRE': "Bâton de feu d'artéfact", 'ARTIFACT_FROST': "Bâton de givre d'artéfact",
-  'ARTIFACT_HOLY': "Bâton sacré d'artéfact", 'ARTIFACT_ARCANE': "Bâton arcanique d'artéfact",
-  'ARTIFACT_NATURE': "Bâton de nature d'artéfact",
-  'BOW': 'Arc', 'CROSSBOW': 'Arbalète', 'LONGBOW': 'Arc long', 'WARBOW': 'Arc de guerre',
-  'AVALONIAN_BOW': 'Arc avalonien', 'AVALONIAN_CROSSBOW': 'Arbalète avalonienne',
-  'ROYAL_BOW': 'Arc royal', 'ARTIFACT_BOW': "Arc d'artéfact", 'ARTIFACT_CROSSBOW': "Arbalète d'artéfact",
-  'DAGGER': 'Dague', 'KATAR': 'Katar', 'SHADOW_DAGGER': "Dague de l'ombre", 'ARTIFACT_DAGGER': "Dague d'artéfact",
-  'HAMMER': 'Marteau', 'MACE': "Masse d'armes", 'BATTLEAXE': 'Hache de bataille',
-  'HALBERD': 'Hallebarde', 'QUARTERSTAFF': 'Bâton de combat', 'ARTIFACT_HAMMER': "Marteau d'artéfact",
-  'BAG': 'Sac', 'CAPE': 'Cape',
-  'HEAD_CLOTH_SET1': 'Coiffe en tissu', 'HEAD_LEATHER_SET1': 'Coiffe en cuir', 'HEAD_PLATE_SET1': 'Coiffe en plaques',
-  'CAPEMAGE': 'Cape de mage', 'CAPERANGER': 'Cape de chasseur', 'CAPEMERCENARY': 'Cape de mercenaire',
-  'CAPEINQUISITOR': "Cape d'inquisiteur", 'CAPEVALKYRIE': 'Cape de valkyrie', 'CAPEHELL': 'Cape des enfers',
+  // Resources
   'ORE': 'Minerai', 'WOOD': 'Bois', 'FIBER': 'Fibre', 'HIDE': 'Peau', 'ROCK': 'Pierre',
+  // Materials
   'METALBAR': 'Lingot de métal', 'PLANKS': 'Planche', 'CLOTH': 'Tissu', 'LEATHER': 'Cuir', 'STONEBLOCK': 'Bloc de pierre',
-  'RMETALBAR': 'Lingot runique', 'RPLANKS': 'Planche runique', 'RCLOTH': 'Tissu runique',
-  'RLEATHER': 'Cuir runique', 'RSTONEBLOCK': 'Bloc de pierre runique',
-  'POTION_HEAL': 'Potion de soins', 'POTION_ENERGY': "Potion d'énergie", 'POTION_FLEX': 'Potion de souplesse',
-  'PORK_RIPE': 'Porc mûr', 'CHICKEN_RIPE': 'Poulet mûr', 'BEET_RIPE': 'Betterave mûre',
-  'CABBAGE_RIPE': 'Chou mûr', 'POTATO_RIPE': 'Pomme de terre mûre',
-  'RUNE_S3': 'Rune (Niv. 3)', 'RUNE_S4': 'Rune (Niv. 4)', 'RUNE_S5': 'Rune (Niv. 5)',
-  'SOUL_S3': 'Âme (Niv. 3)', 'SOUL_S4': 'Âme (Niv. 4)', 'SOUL_S5': 'Âme (Niv. 5)',
-  'RELIC_S3': 'Relique (Niv. 3)', 'RELIC_S4': 'Relique (Niv. 4)', 'RELIC_S5': 'Relique (Niv. 5)',
-  'BOOK_UNDEAD': 'Livre des morts-vivants', 'BOOK_DEMON': 'Livre des démons',
-  'BOOK_MORGANA': 'Livre de Morgana', 'BOOK_AVALON': "Livre d'Avalon",
-  'JOURNAL_WARRIOR': 'Journal de guerrier', 'JOURNAL_MAGE': 'Journal de mage', 'JOURNAL_HUNTER': 'Journal de chasseur',
-  'MOUNT_HORSE': 'Cheval', 'MOUNT_ARMORED_HORSE': 'Cheval blindé', 'MOUNT_OX': 'Bœuf', 'MOUNT_STAG': 'Cerf',
-  'FARM_FOCUS': 'Focus de ferme',
+  // Equipment
+  'BAG': 'Sac', 'CAPE': 'Cape',
+  // Armor Cloth
+  'ARMOR_CLOTH_SET1': 'Armure en tissu', 'SHOES_CLOTH_SET1': 'Chaussures en tissu', 'HEAD_CLOTH_SET1': 'Coiffe en tissu',
+  // Armor Leather
+  'ARMOR_LEATHER_SET1': 'Armure en cuir', 'SHOES_LEATHER_SET1': 'Chaussures en cuir', 'HEAD_LEATHER_SET1': 'Coiffe en cuir',
+  // Armor Plate
+  'ARMOR_PLATE_SET1': 'Armure en plaques', 'SHOES_PLATE_SET1': 'Chaussures en plaques', 'HEAD_PLATE_SET1': 'Coiffe en plaques',
+  // Runes
+  'RUNE': 'Rune', 'SOUL': 'Âme', 'RELIC': 'Relique',
+  // Potions
+  'POTION_HEAL': 'Potion de soins', 'POTION_ENERGY': "Potion d'énergie",
 }
 
 function parseItemId(itemId: string): { tier: string | null; baseKey: string } {
@@ -184,7 +165,7 @@ async function fetchAllMarketData(): Promise<MarketData[]> {
         })
         if (!res.ok) return []
         const data = await res.json() as MarketData[]
-        // Filter to quality 1 only (API returns all qualities despite filter)
+        // API returns all quality levels — filter to quality 1 only
         return data.filter(d => d.quality === 1)
       })
     )
@@ -279,7 +260,7 @@ function processAllData(allData: MarketData[], gold: GoldData | null) {
   // 2) Raffinage
   const refine: RefineOpportunity[] = []
   for (const chain of REFINE_CHAINS) {
-    for (const tier of [5, 6, 7, 8]) {
+    for (const tier of [4, 5, 6, 7, 8]) {
       const rawId = `T${tier}_${chain.raw}`
       const refinedId = `T${tier}_${chain.refined}`
       const rawEntries = marketMap.get(rawId)
@@ -293,7 +274,7 @@ function processAllData(allData: MarketData[], gold: GoldData | null) {
         const sellCandidates = refinedEntries.filter(e => e.city !== BLACK_MARKET_CITY && e.buy_price_max && e.buy_price_max > 0)
         if (sellCandidates.length === 0) continue
         sellCandidates.sort((a, b) => {
- const aB = a.city === bonusCity ? 1 : 0; const bB = b.city === bonusCity ? 1 : 0
+          const aB = a.city === bonusCity ? 1 : 0; const bB = b.city === bonusCity ? 1 : 0
           return bB !== aB ? bB - aB : (b.buy_price_max || 0) - (a.buy_price_max || 0)
         })
         const bestSell = sellCandidates[0]
@@ -312,7 +293,7 @@ function processAllData(allData: MarketData[], gold: GoldData | null) {
   const refineList = [...refineBest.values()].sort((a, b) => b.marginPercent - a.marginPercent)
 
   // 3) Transport
-  const RESOURCE_KW = ['ORE','WOOD','FIBER','HIDE','ROCK','METALBAR','PLANKS','CLOTH','LEATHER','STONEBLOCK','RMETALBAR','RPLANKS','RCLOTH','RLEATHER','RSTONEBLOCK','POTION','PORK','CHICKEN','BEET','CABBAGE','POTATO','RUNE','SOUL','RELIC','JOURNAL','BOOK','FARM']
+  const RESOURCE_KW = ['ORE','WOOD','FIBER','HIDE','ROCK','METALBAR','PLANKS','CLOTH','LEATHER','STONEBLOCK','RUNE','SOUL','RELIC','POTION','BAG','CAPE','ARMOR','SHOES','HEAD']
   const transport: TransportOpportunity[] = []
   for (const [itemId, entries] of marketMap) {
     if (!RESOURCE_KW.some(kw => itemId.includes(kw))) continue

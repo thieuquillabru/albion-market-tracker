@@ -64,52 +64,26 @@ function getTierLabel(name: string): string {
 
 function getItemCategory(name: string): string {
   const lower = name.toLowerCase()
-  if (lower.includes('épée') || lower.includes('claymore') || lower.includes('cimeterre')) return 'Arme Blanche'
-  if (lower.includes('dague') || lower.includes('katar')) return 'Arme Blanche'
-  if (lower.includes('bâton')) return 'Bâton Magique'
-  if (lower.includes('arc') || lower.includes('arbalète')) return 'Arme à Distance'
-  if (lower.includes('marteau') || lower.includes('masse') || lower.includes('hache') || lower.includes('hallebarde')) return 'Arme de Mêlée'
-  if (lower.includes('coiffe') || lower.includes('sac') || lower.includes('cape')) return 'Armure'
   if (lower.includes('minerai') || lower.includes('bois') || lower.includes('fibre') || lower.includes('peau') || lower.includes('pierre')) return 'Ressource'
   if (lower.includes('lingot') || lower.includes('planche') || lower.includes('tissu') || lower.includes('cuir') || lower.includes('bloc de pierre')) return 'Matériau'
-  if (lower.includes('runique')) return 'Matériau Runique'
-  if (lower.includes('potion')) return 'Potion'
-  if (lower.includes('porc') || lower.includes('poulet') || lower.includes('betterave') || lower.includes('chou') || lower.includes('pomme de terre')) return 'Nourriture'
-  if (lower.includes('cheval') || lower.includes('bœuf') || lower.includes('cerf')) return 'Monture'
+  if (lower.includes('armure') || lower.includes('coiffe') || lower.includes('chaussures')) return 'Armure'
+  if (lower.includes('sac')) return 'Équipement'
+  if (lower.includes('cape')) return 'Équipement'
   if (lower.includes('rune') || lower.includes('âme') || lower.includes('relique')) return 'Rune'
-  if (lower.includes('livre') || lower.includes('journal')) return 'Livre'
-  if (lower.includes('avalonien')) return 'Avalonien'
-  if (lower.includes('royal')) return 'Royal'
-  if (lower.includes('artéfact')) return 'Artéfact'
-  if (lower.includes('ferme')) return 'Farming'
+  if (lower.includes('potion')) return 'Potion'
   return 'Autre'
 }
 
 function getRenderId(dataProjectId: string): string {
+  // Most Data Project IDs match render IDs directly.
+  // Only a few items need remapping.
   const m = dataProjectId.match(/^(T\d+_|)(.+)$/)
   if (!m) return dataProjectId
   const tier = m[1] || ''
   const base = m[2]
   const MAP: Record<string, string> = {
-    ARMORED_SWORD:'MAIN_SWORD',BROADSWORD:'MAIN_SWORD',CLAYMORE:'2H_CLAYMORE',DUAL_SWORDS:'2H_DUALSWORD',
-    FIRE_STAFF:'MAIN_FIRESTAFF',FROST_STAFF:'MAIN_FROSTSTAFF',HOLY_STAFF:'MAIN_HOLYSTAFF',
-    ARCANESTAFF:'MAIN_ARCANESTAFF',NATURE_STAFF:'MAIN_NATURESTAFF',
-    BOW:'2H_BOW',CROSSBOW:'MAIN_1HCROSSBOW',LONGBOW:'2H_LONGBOW',WARBOW:'2H_WARBOW',
-    DAGGER:'MAIN_DAGGER',KATAR:'2H_KATAR',SHADOW_DAGGER:'MAIN_DAGGER_HELL',
-    HAMMER:'MAIN_HAMMER',MACE:'MAIN_MACE',BATTLEAXE:'MAIN_AXE',
-    HALBERD:'2H_HALBERD',QUARTERSTAFF:'2H_QUARTERSTAFF',ESCIMITAR:'MAIN_SCIMITAR_MORGANA',
-    CAPEMAGE:'CAPEITEM_MORGANA',CAPERANGER:'CAPEITEM_KEEPER',CAPEMERCENARY:'CAPEITEM_HERETIC',
-    CAPEINQUISITOR:'CAPEITEM_UNDEAD',CAPEVALKYRIE:'CAPEITEM_AVALON',CAPEHELL:'CAPEITEM_DEMON',
-    AVALONIAN_SWORD:'MAIN_SWORD_CRYSTAL',AVALONIAN_FIRE:'MAIN_FIRESTAFF_CRYSTAL',
-    AVALONIAN_FROST:'MAIN_FROSTSTAFF_AVALON',AVALONIAN_HOLY:'MAIN_HOLYSTAFF_AVALON',
-    AVALONIAN_ARCANE:'MAIN_ARCANESTAFF_AVALON',AVALONIAN_NATURE:'MAIN_NATURESTAFF_AVALON',
-    AVALONIAN_BOW:'2H_BOW_AVALON',AVALONIAN_CROSSBOW:'2H_CROSSBOW_AVALON',
-    ROYAL_SWORD:'MAIN_SWORD',ROYAL_FIRE:'MAIN_FIRESTAFF',ROYAL_FROST:'MAIN_FROSTSTAFF',ROYAL_BOW:'2H_BOW',
-    ARTIFACT_SWORD:'MAIN_SWORD_CRYSTAL',ARTIFACT_FIRE:'MAIN_FIRESTAFF_HELL',
-    ARTIFACT_FROST:'MAIN_FROSTSTAFF_HELL',ARTIFACT_HOLY:'MAIN_HOLYSTAFF_HELL',
-    ARTIFACT_ARCANE:'MAIN_ARCANESTAFF_HELL',ARTIFACT_NATURE:'MAIN_NATURESTAFF_HELL',
-    ARTIFACT_BOW:'2H_BOW_HELL',ARTIFACT_CROSSBOW:'2H_CROSSBOWLARGE',
-    ARTIFACT_DAGGER:'MAIN_DAGGER_HELL',ARTIFACT_HAMMER:'2H_HAMMER_HELL',
+    CLOTH: 'CLOTHITEM',
+    LEATHER: 'LEATHERITEM',
   }
   return tier + (MAP[base] || base)
 }
