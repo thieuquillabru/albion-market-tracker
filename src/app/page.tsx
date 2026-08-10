@@ -115,8 +115,24 @@ function getRenderId(dataProjectId: string): string {
 }
 
 function ItemIcon({ itemId, size = 32 }: { itemId: string; size?: number }) {
+  const [error, setError] = useState(false)
   const renderId = getRenderId(itemId)
-  const src = `https://render.albiononline.com/v1/item/${renderId}`
+  const src = `https://render.albiononline.com/v1/item/${renderId}?quality=1`
+  const tier = itemId.match(/T(\d)/)
+  const tierNum = tier ? parseInt(tier[1]) : 4
+  const colors = ['','oklch(0.7 0.15 250)','oklch(0.65 0.2 200)','oklch(0.7 0.18 40)','oklch(0.7 0.18 40)','oklch(0.75 0.2 80)','oklch(0.7 0.2 300)','oklch(0.65 0.22 300)','oklch(0.8 0.18 80)']
+  const color = colors[tierNum] || colors[4]
+  if (error) {
+    return (
+      <div
+        className="inline-flex items-center justify-center rounded-md border border-border/30 flex-shrink-0"
+        style={{ width: size, height: size, minWidth: size, minHeight: size, backgroundColor: color + '33' }}
+        title={renderId}
+      >
+        <span style={{ fontSize: size * 0.45, color, fontWeight: 700, lineHeight: 1 }}>{tier ? tier[1] : '?'}</span>
+      </div>
+    )
+  }
   return (
     <img
       src={src}
@@ -124,6 +140,7 @@ function ItemIcon({ itemId, size = 32 }: { itemId: string; size?: number }) {
       width={size}
       height={size}
       loading="lazy"
+      onError={() => setError(true)}
       className="inline-block rounded-md bg-black/30 border border-border/30 flex-shrink-0"
       style={{ imageRendering: 'auto', minWidth: size, minHeight: size }}
     />

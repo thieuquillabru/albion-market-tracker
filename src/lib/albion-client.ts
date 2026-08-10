@@ -177,12 +177,15 @@ async function fetchAllMarketData(): Promise<MarketData[]> {
     const chunk = batches.slice(i, i + concurrency)
     const results = await Promise.allSettled(
       chunk.map(async (batch) => {
-        const url = `${ALBION_API}/prices/${batch.join(',')}?locations=${CITIES.join(',')}&quality=1`
+        const url = `${ALBION_API}/prices/${batch.join(',')}?locations=${CITIES.join(',')}`
         const res = await fetch(url, {
           headers: { 'Accept': 'application/json' },
           signal: AbortSignal.timeout(15000),
         })
-        return res.ok ? (await res.json()) as MarketData[] : []
+        if (!res.ok) return []
+        const data = await res.json() as MarketData[]
+        // Filter to quality 1 only (API returns all qualities despite filter)
+        return data.filter(d => d.quality === 1)
       })
     )
     for (const r of results) {
