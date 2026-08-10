@@ -1,0 +1,528 @@
+     1→   115→   184→   184→}
+     2→   116→   185→   185→
+     3→   117→   186→   186→function GoldTicker({ gold }: { gold: GoldData | null }) {
+     4→   118→   187→   187→  return (
+     5→   119→   188→   188→    <Card className="border-amber-500/30 bg-gradient-to-r from-amber-950/40 to-card">
+     6→   120→   189→   189→      <CardContent className="p-4">
+     7→   121→   190→   190→        <div className="flex items-center justify-between">
+     8→   122→   191→   191→          <div className="flex items-center gap-3">
+     9→   123→   192→   192→            <div className="p-2 rounded-lg bg-amber-500/20">
+    10→   124→   193→   193→              <Coins className="h-5 w-5 text-amber-400" />
+    11→   125→   194→   194→            </div>
+    12→   126→   195→   195→            <div>
+    13→   127→   196→   196→              <p className="text-xs text-muted-foreground uppercase tracking-wider">Prix de l'Or</p>
+    14→   128→   197→   197→              <p className="text-2xl font-bold text-amber-400 font-mono">
+    15→   129→   198→   198→                {gold ? formatGoldPrice(gold.price) : '...'}{' '}
+    16→   130→   199→   199→                <span className="text-sm text-muted-foreground font-sans">argent/or</span>
+    17→   131→   200→   200→              </p>
+    18→   132→   201→   201→            </div>
+    19→   133→   202→   202→          </div>
+    20→   134→   203→   203→          {gold && (
+    21→   135→   204→   204→            <div className="text-right">
+    22→   136→   205→   205→              <p className="text-xs text-muted-foreground">
+    23→   137→   206→   206→                {new Date(gold.timestamp).toLocaleString('fr-FR')}
+    24→   138→   207→   207→              </p>
+    25→   139→   208→   208→            </div>
+    26→   140→   209→   209→          )}
+    27→   141→   210→   210→        </div>
+    28→   142→   211→   211→      </CardContent>
+    29→   143→   212→   212→    </Card>
+    30→   144→   213→   213→  )
+    31→   145→   214→   214→}
+    32→   146→   215→   215→
+    33→   147→   216→   216→function StatCard({ icon: Icon, label, value, subtext, color }: { icon: React.ElementType; label: string; value: string | number; subtext?: string; color: string }) {
+    34→   148→   217→   217→  return (
+    35→   149→   218→   218→    <Card>
+    36→   150→   219→   219→      <CardContent className="p-4">
+    37→   151→   220→   220→        <div className="flex items-center gap-3">
+    38→   152→   221→   221→          <div className={`p-2 rounded-lg ${color}`}>
+    39→   153→   222→   222→            <Icon className="h-4 w-4" />
+    40→   154→   223→   223→          </div>
+    41→   155→   224→   224→          <div>
+    42→   156→   225→   225→            <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
+    43→   157→   226→   226→            <p className="text-xl font-bold font-mono">{value}</p>
+    44→   158→   227→   227→            {subtext && <p className="text-xs text-muted-foreground">{subtext}</p>}
+    45→   159→   228→   228→          </div>
+    46→   160→   229→   229→        </div>
+    47→   161→   230→   230→      </CardContent>
+    48→   162→   231→   231→    </Card>
+    49→   163→   232→   232→  )
+    50→   164→   233→   233→}
+    51→   165→   234→   234→
+    52→   166→   235→   235→function TopSellingTable({ items }: { items: TopSellingItem[] }) {
+    53→   167→   236→   236→  return (
+    54→   168→   237→   237→    <div className="rounded-lg border overflow-hidden">
+    55→   169→   238→   238→      <Table>
+    56→   170→   239→   239→        <TableHeader>
+    57→   171→   240→   240→          <TableRow className="hover:bg-transparent border-border/50">
+    58→   172→   241→   241→            <TableHead className="w-8 text-center">#</TableHead>
+    59→   173→   242→   242→            <TableHead>Item</TableHead>
+    60→   174→   243→   243→            <TableHead className="hidden md:table-cell">Cat\u00e9gorie</TableHead>
+    61→   175→   244→   244→            <TableHead className="text-right">Prix Vente</TableHead>
+    62→   176→   245→   245→            <TableHead className="text-right hidden sm:table-cell">Prix Achat</TableHead>
+    63→   177→   246→   246→            <TableHead className="text-right hidden lg:table-cell">Prix Moyen</TableHead>
+    64→   178→   247→   247→            <TableHead className="hidden lg:table-cell">Meilleur March\u00e9</TableHead>
+    65→   179→   248→   248→            <TableHead className="text-center">Activit\u00e9</TableHead>
+    66→   180→   249→   249→          </TableRow>
+    67→   181→   250→   250→        </TableHeader>
+    68→   182→   251→   251→        <TableBody>
+    69→   183→   252→   252→          {items.map((item, idx) => (
+    70→   184→   253→   253→            <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
+    71→   185→   254→   254→              <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
+    72→   186→   255→   255→              <TableCell>
+    73→   187→   256→   256→                <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
+    74→   188→   257→   257→              </TableCell>
+    75→   189→   258→   258→              <TableCell className="hidden md:table-cell">
+    76→   190→   259→   259→                <Badge variant={getTierBadgeVariant(item.name)} className="text-xs">
+    77→   191→   260→   260→                  {getItemCategory(item.name)}
+    78→   192→   261→   261→                </Badge>
+    79→   193→   262→   262→              </TableCell>
+    80→   194→   263→   263→              <TableCell className="text-right font-mono text-emerald-400">
+    81→   195→   264→   264→                {item.bestSellPrice ? formatSilver(item.bestSellPrice) : '-'}
+    82→   196→   265→   265→              </TableCell>
+    83→   197→   266→   266→              <TableCell className="text-right font-mono text-amber-400 hidden sm:table-cell">
+    84→   198→   267→   267→                {item.bestBuyPrice ? formatSilver(item.bestBuyPrice) : '-'}
+    85→   199→   268→   268→              </TableCell>
+    86→   200→   269→   269→              <TableCell className="text-right font-mono hidden lg:table-cell">
+    87→   201→   270→   270→                {item.avgSellPrice ? formatSilver(item.avgSellPrice) : '-'}
+    88→   202→   271→   271→              </TableCell>
+    89→   203→   272→   272→              <TableCell className="hidden lg:table-cell">
+    90→   204→   273→   273→                {item.bestSellCity ? (
+    91→   205→   274→   274→                  <Badge variant="outline" className="text-xs font-normal">{item.bestSellCity}</Badge>
+    92→   206→   275→   275→                ) : '-'}
+    93→   207→   276→   276→              </TableCell>
+    94→   208→   277→   277→              <TableCell className="text-center">
+    95→   209→   278→   278→                <div className="flex items-center justify-center gap-1">
+    96→   210→   279→   279→                  <Activity className="h-3.5 w-3.5 text-primary" />
+    97→   211→   280→   280→                  <span className="font-mono text-sm">{item.totalVolume}</span>
+    98→   212→   281→   281→                </div>
+    99→   213→   282→   282→              </TableCell>
+   100→   214→   283→   283→            </TableRow>
+   101→   215→   284→   284→          ))}
+   102→   216→   285→   285→          {items.length === 0 && (
+   103→   217→   286→   286→            <TableRow>
+   104→   218→   287→   287→              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+   105→   219→   288→   288→                Aucune donn\u00e9e disponible. Patientez pendant le chargement...
+   106→   220→   289→   289→              </TableCell>
+   107→   221→   290→   290→            </TableRow>
+   108→   222→   291→   291→          )}
+   109→   223→   292→   292→        </TableBody>
+   110→   224→   293→   293→      </Table>
+   111→   225→   294→   294→    </div>
+   112→   226→   295→   295→  )
+   113→   227→   296→   296→}
+   114→   228→   297→   297→
+   115→   229→   298→   298→function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
+   116→   230→   299→   299→  return (
+   117→   231→   300→   300→    <div className="rounded-lg border overflow-hidden">
+   118→   232→   301→   301→      <Table>
+   119→   233→   302→   302→        <TableHeader>
+   120→   234→   303→   303→          <TableRow className="hover:bg-transparent border-border/50">
+   121→   235→   304→   304→            <TableHead className="w-8 text-center">#</TableHead>
+   122→   236→   305→   305→            <TableHead>Item</TableHead>
+   123→   237→   306→   306→            <TableHead className="text-right">Black Market</TableHead>
+   124→   238→   307→   307→            <TableHead className="text-right hidden sm:table-cell">Source</TableHead>
+   125→   239→   308→   308→            <TableHead className="hidden md:table-cell">Ville Source</TableHead>
+   126→   240→   309→   309→            <TableHead className="text-right">Profit</TableHead>
+   127→   241→   310→   310→            <TableHead className="text-right">Marge</TableHead>
+   128→   242→   311→   311→          </TableRow>
+   129→   243→   312→   312→        </TableHeader>
+   130→   244→   313→   313→        <TableBody>
+   131→   245→   314→   314→          {items.map((item, idx) => (
+   132→   246→   315→   315→            <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
+   133→   247→   316→   316→              <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
+   134→   248→   317→   317→              <TableCell>
+   135→   249→   318→   318→                <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
+   136→   250→   319→   319→              </TableCell>
+   137→   251→   320→   320→              <TableCell className="text-right font-mono text-amber-400">
+   138→   252→   321→   321→                {formatSilver(item.blackMarketPrice)}
+   139→   253→   322→   322→              </TableCell>
+   140→   254→   323→   323→              <TableCell className="text-right font-mono hidden sm:table-cell">
+   141→   255→   324→   324→                {formatSilver(item.sourcePrice)}
+   142→   256→   325→   325→              </TableCell>
+   143→   257→   326→   326→              <TableCell className="hidden md:table-cell">
+   144→   258→   327→   327→                <Badge variant="outline" className="text-xs font-normal">{item.sourceCity}</Badge>
+   145→   259→   328→   328→              </TableCell>
+   146→   260→   329→   329→              <TableCell className="text-right font-mono text-emerald-400">
+   147→   261→   330→   330→                +{formatSilver(item.profit)}
+   148→   262→   331→   331→              </TableCell>
+   149→   263→   332→   332→              <TableCell className="text-right">
+   150→   264→   333→   333→                <div className="flex items-center justify-end gap-1">
+   151→   265→   334→   334→                  <ArrowUpRight className={`h-4 w-4 ${item.marginPercent > 30 ? 'text-emerald-400' : 'text-amber-400'}`} />
+   152→   266→   335→   335→                  <span className={`font-mono font-semibold ${item.marginPercent > 30 ? 'text-emerald-400' : 'text-amber-400'}`}>
+   153→   267→   336→   336→                    +{item.marginPercent}%
+   154→   268→   337→   337→                  </span>
+   155→   269→   338→   338→                </div>
+   156→   270→   339→   339→              </TableCell>
+   157→   271→   340→   340→            </TableRow>
+   158→   272→   341→   341→          ))}
+   159→   273→   342→   342→          {items.length === 0 && (
+   160→   274→   343→   343→            <TableRow>
+   161→   275→   344→   344→              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+   162→   276→   345→   345→                Aucune opportunit\u00e9 de profit trouv\u00e9e sur le Black Market
+   163→   277→   346→   346→              </TableCell>
+   164→   278→   347→   347→            </TableRow>
+   165→   279→   348→   348→          )}
+   166→   280→   349→   349→        </TableBody>
+   167→   281→   350→   350→      </Table>
+   168→   282→   351→   351→    </div>
+   169→   283→   352→   352→  )
+   170→   284→   353→   353→}
+   171→   285→   354→   354→
+   172→   286→   355→   355→function TrendingChart({ items }: { items: TrendingItem[] }) {
+   173→   287→   356→   356→  const chartData = items.slice(0, 12).map(item => ({
+   174→   288→   357→   357→    name: item.name.length > 22 ? item.name.substring(0, 22) + '...' : item.name,
+   175→   289→   358→   358→    fullName: item.name,
+   176→   290→   359→   359→    minPrice: item.minPrice,
+   177→   291→   360→   360→    maxPrice: item.maxPrice,
+   178→   292→   361→   361→    avgPrice: item.avgPrice,
+   179→   293→   362→   362→    spread: item.spread,
+   180→   294→   363→   363→    cityCount: item.cityCount,
+   181→   295→   364→   364→  }))
+   182→   296→   365→   365→
+   183→   297→   366→   366→  return (
+   184→   298→   367→   367→    <div className="space-y-6">
+   185→   299→   368→   368→      <Card>
+   186→   300→   369→   369→        <CardHeader className="pb-2">
+   187→   301→   370→   370→          <CardTitle className="text-base flex items-center gap-2">
+   188→   302→   371→   371→            <BarChart3 className="h-4 w-4 text-primary" />
+   189→   303→   372→   372→            \u00c9cart de Prix par Item (Min vs Max)
+   190→   304→   373→   373→          </CardTitle>
+   191→   305→   374→   374→          <CardDescription>Les items avec le plus grand \u00e9cart entre la ville la moins ch\u00e8re et la plus ch\u00e8re</CardDescription>
+   192→   306→   375→   375→        </CardHeader>
+   193→   307→   376→   376→        <CardContent>
+   194→   308→   377→   377→          <div className="h-80">
+   195→   309→   378→   378→            <ResponsiveContainer width="100%" height="100%">
+   196→   310→   379→   379→              <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 60 }}>
+   197→   311→   380→   380→                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0.02 260)" />
+   198→   312→   381→   381→                <XAxis
+   199→   313→   382→   382→                  dataKey="name"
+   200→   314→   383→   383→                  tick={{ fill: 'oklch(0.65 0.02 260)', fontSize: 11 }}
+   201→   315→   384→   384→                  angle={-35}
+   202→   316→   385→   385→                  textAnchor="end"
+   203→   317→   386→   386→                  height={80}
+   204→   318→   387→   387→                />
+   205→   319→   388→   388→                <YAxis
+   206→   320→   389→   389→                  tick={{ fill: 'oklch(0.65 0.02 260)', fontSize: 11 }}
+   207→   321→   390→   390→                  tickFormatter={(v: number) => formatSilver(v)}
+   208→   322→   391→   391→                />
+   209→   323→   392→   392→                <RechartsTooltip
+   210→   324→   393→   393→                  contentStyle={{
+   211→   325→   394→   394→                    backgroundColor: 'oklch(0.17 0.012 260)',
+   212→   326→   395→   395→                    border: '1px solid oklch(0.3 0.02 260)',
+   213→   327→   396→   396→                    borderRadius: '8px',
+   214→   328→   397→   397→                    color: 'oklch(0.93 0.01 80)',
+   215→   329→   398→   398→                  }}
+   216→   330→   399→   399→                  formatter={(value: number, name: string) => [formatSilver(value), name === 'minPrice' ? 'Prix Min' : name === 'maxPrice' ? 'Prix Max' : name === 'avgPrice' ? 'Prix Moyen' : name]}
+   217→   331→   400→   400→                  labelFormatter={(label: string, payload?: Array<{ payload?: { fullName?: string } }>) => {
+   218→   332→   401→   401→                    if (payload && payload.length > 0 && payload[0].payload?.fullName) {
+   219→   333→   402→   402→                      return payload[0].payload.fullName
+   220→   334→   403→   403→                    }
+   221→   335→   404→   404→                    return label
+   222→   336→   405→   405→                  }}
+   223→   337→   406→   406→                />
+   224→   338→   407→   407→                <Bar dataKey="minPrice" fill="oklch(0.65 0.2 155)" radius={[2, 0, 0, 2]} name="Prix Min" />
+   225→   339→   408→   408→                <Bar dataKey="maxPrice" fill="oklch(0.65 0.2 25)" radius={[0, 2, 2, 0]} name="Prix Max" />
+   226→   340→   409→   409→              </BarChart>
+   227→   341→   410→   410→            </ResponsiveContainer>
+   228→   342→   411→   411→          </div>
+   229→   343→   412→   412→        </CardContent>
+   230→   344→   413→   413→      </Card>
+   231→   345→   414→   414→
+   232→   346→   415→   415→      <Card>
+   233→   347→   416→   416→        <CardHeader className="pb-2">
+   234→   348→   417→   417→          <CardTitle className="text-base flex items-center gap-2">
+   235→   349→   418→   418→            <Search className="h-4 w-4 text-primary" />
+   236→   350→   419→   419→            D\u00e9tail des Tendances
+   237→   351→   420→   420→          </CardTitle>
+   238→   352→   421→   421→          <CardDescription>Items les plus recherch\u00e9s avec leurs prix par ville</CardDescription>
+   239→   353→   422→   422→        </CardHeader>
+   240→   354→   423→   423→        <CardContent>
+   241→   355→   424→   424→          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+   242→   356→   425→   425→            {items.map((item) => (
+   243→   357→   426→   426→              <div key={item.itemId} className="p-3 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors">
+   244→   358→   427→   427→                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+   245→   359→   428→   428→                  <div className="flex items-center gap-2 flex-wrap">
+   246→   360→   429→   429→                    <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
+   247→   361→   430→   430→                    <Badge variant={getTierBadgeVariant(item.name)} className="text-xs">{getTierLabel(item.name)}</Badge>
+   248→   362→   431→   431→                    <Badge variant="outline" className="text-xs">{item.cityCount} villes</Badge>
+   249→   363→   432→   432→                  </div>
+   250→   364→   433→   433→                  <div className="flex items-center gap-3 text-sm flex-wrap">
+   251→   365→   434→   434→                    <span className="text-muted-foreground">Moy: <span className="font-mono text-foreground">{formatSilver(item.avgPrice)}</span></span>
+   252→   366→   435→   435→                    <span className="text-emerald-400">Min: <span className="font-mono">{formatSilver(item.minPrice)}</span></span>
+   253→   367→   436→   436→                    <span className="text-red-400">Max: <span className="font-mono">{formatSilver(item.maxPrice)}</span></span>
+   254→   368→   437→   437→                  </div>
+   255→   369→   438→   438→                </div>
+   256→   370→   439→   439→                <div className="flex flex-wrap gap-2">
+   257→   371→   440→   440→                  {item.cities.map((c) => (
+   258→   372→   441→   441→                    <div key={c.city} className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-background/50 text-xs">
+   259→   373→   442→   442→                      <span className="text-muted-foreground">{c.city}:</span>
+   260→   374→   443→   443→                      {c.sellPrice && <span className="font-mono text-emerald-400">V {formatSilver(c.sellPrice)}</span>}
+   261→   375→   444→   444→                      {c.buyPrice && c.buyPrice > 0 && <span className="font-mono text-amber-400">A {formatSilver(c.buyPrice)}</span>}
+   262→   376→   445→   445→                    </div>
+   263→   377→   446→   446→                  ))}
+   264→   378→   447→   447→                </div>
+   265→   379→   448→   448→              </div>
+   266→   380→   449→   449→            ))}
+   267→   381→   450→   450→            {items.length === 0 && (
+   268→   382→   451→   451→              <div className="text-center py-8 text-muted-foreground">Aucune tendance disponible</div>
+   269→   383→   452→   452→            )}
+   270→   384→   453→   453→          </div>
+   271→   385→   454→   454→        </CardContent>
+   272→   386→   455→   455→      </Card>
+   273→   387→   456→   456→    </div>
+   274→   388→   457→   457→  )
+   275→   389→   458→   458→}
+   276→   390→   459→   459→
+   277→   391→   460→   460→function LoadingSkeleton() {
+   278→   392→   461→   461→  return (
+   279→   393→   462→   462→    <div className="space-y-6">
+   280→   394→   463→   463→      <Skeleton className="h-20 rounded-lg" />
+   281→   395→   464→   464→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   282→   396→   465→   465→        <Skeleton className="h-20 rounded-lg" />
+   283→   397→   466→   466→        <Skeleton className="h-20 rounded-lg" />
+   284→   398→   467→   467→        <Skeleton className="h-20 rounded-lg" />
+   285→   399→   468→   468→        <Skeleton className="h-20 rounded-lg" />
+   286→   400→   469→   469→      </div>
+   287→   401→   470→   470→      <Skeleton className="h-64 rounded-lg" />
+   288→   402→   471→   471→      <div className="space-y-2">
+   289→   403→   472→   472→        {Array.from({ length: 8 }).map((_, i) => (
+   290→   404→   473→   473→          <Skeleton key={i} className="h-12 rounded-lg" />
+   291→   405→   474→   474→        ))}
+   292→   406→   475→   475→      </div>
+   293→   407→   476→   476→    </div>
+   294→   408→   477→   477→  )
+   295→   409→   478→   478→}
+   296→   410→   479→   479→
+   297→   411→   480→   480→// --- Main Page ---
+   298→   412→   481→   481→export default function AlbionMarketTracker() {
+   299→   413→   482→   482→  const [lastUpdate, setLastUpdate] = useState(0)
+   300→   414→   483→   483→  const [gold, setGold] = useState<GoldData | null>(null)
+   301→   415→   484→   484→  const [topSelling, setTopSelling] = useState<TopSellingItem[]>([])
+   302→   416→   485→   485→  const [blackMarket, setBlackMarket] = useState<BlackMarketItem[]>([])
+   303→   417→   486→   486→  const [trending, setTrending] = useState<TrendingItem[]>([])
+   304→   418→   487→   487→  const [totalItems, setTotalItems] = useState(0)
+   305→   419→   488→   488→  const [loading, setLoading] = useState(true)
+   306→   420→   489→   489→  const [fetching, setFetching] = useState(false)
+   307→   421→   490→   490→  const [connected, setConnected] = useState(false)
+   308→   422→   491→   491→  const [updateCount, setUpdateCount] = useState(0)
+   309→   423→   492→   492→  const lastFetchTimeRef = useRef(0)
+   310→   424→   493→   493→  const pollSeqRef = useRef(0)
+   311→   425→   494→   494→
+   312→   426→   495→   495→  // Update "time ago" ticker every 5s
+   313→   427→   496→   496→  const [, setTick] = useState(0)
+   314→   428→   497→   497→  useEffect(() => {
+   315→   429→   498→   498→    const interval = setInterval(() => setTick(t => t + 1), 5000)
+   316→   430→   499→   499→    return () => clearInterval(interval)
+   317→   431→   500→   500→  }, [])
+   318→   432→   501→   501→
+   319→   433→   502→   502→  // Smart polling: polls /api/stream every 5s, only updates UI when data changes
+   320→   434→   503→   503→  useEffect(() => {
+   321→   435→   504→   504→    let active = true
+   322→   436→   505→   505→
+   323→   437→   506→   506→    async function poll() {
+   324→   438→   507→   507→      if (!active) return
+   325→   439→   508→   508→      try {
+   326→   440→   509→   509→        const res = await fetch('/api/stream')
+   327→   441→   510→   510→        if (!res.ok) { setConnected(false); return }
+   328→   442→   511→   511→        const payload: MarketPayload & { serverTime: number } = await res.json()
+   329→   443→   512→   512→        if (!active || payload.type !== 'market-update' || !payload.data) return
+   330→   444→   513→   513→
+   331→   445→   514→   514→        if (payload.lastFetchTime !== lastFetchTimeRef.current) {
+   332→   446→   515→   515→          lastFetchTimeRef.current = payload.lastFetchTime
+   333→   447→   516→   516→          setGold(payload.gold)
+   334→   448→   517→   517→          setTopSelling(payload.data.topSelling)
+   335→   449→   518→   518→          setBlackMarket(payload.data.blackMarket)
+   336→   450→   519→   519→          setTrending(payload.data.trending)
+   337→   451→   520→   520→          setTotalItems(payload.data.totalItemsTracked)
+   338→   452→   521→   521→          setLastUpdate(payload.lastFetchTime)
+   339→   453→   522→   522→          setUpdateCount(c => c + 1)
+   340→   454→   523→   523→          setLoading(false)
+   341→   455→   524→   524→          pollSeqRef.current++
+   342→   456→   525→   525→          console.log(`[LIVE] Update #${pollSeqRef.current} - server data from ${new Date(payload.lastFetchTime).toLocaleTimeString('fr-FR')}`)
+   343→   457→   526→   526→        }
+   344→   458→   527→   527→        setConnected(true)
+   345→   459→   528→   528→        setFetching(false)
+   346→   460→   529→   529→      } catch {
+   347→   461→   530→   530→        setConnected(false)
+   348→   462→   531→   531→      }
+   349→   463→   532→   532→    }
+   350→   464→   533→   533→
+   351→   465→   534→   534→    poll()
+   352→   466→   535→   535→    const interval = setInterval(poll, 5000)
+   353→   467→   536→   536→    return () => { active = false; clearInterval(interval) }
+   354→   468→   537→   537→  }, [])
+   355→   469→   538→   538→
+   356→   470→   539→   539→  const handleManualRefresh = () => {
+   357→   471→   540→   540→    setFetching(true)
+   358→   472→   541→   541→    lastFetchTimeRef.current = 0
+   359→   473→   542→   542→    fetch('/api/stream')
+   360→   474→   543→   543→      .then(r => r.json())
+   361→   475→   544→   544→      .then((payload: MarketPayload) => {
+   362→   476→   545→   545→        if (payload.type === 'market-update' && payload.data) {
+   363→   477→   546→   546→          lastFetchTimeRef.current = payload.lastFetchTime
+   364→   478→   547→   547→          setGold(payload.gold)
+   365→   479→   548→   548→          setTopSelling(payload.data.topSelling)
+   366→   480→   549→   549→          setBlackMarket(payload.data.blackMarket)
+   367→   481→   550→   550→          setTrending(payload.data.trending)
+   368→   482→   551→   551→          setTotalItems(payload.data.totalItemsTracked)
+   369→   483→   552→   552→          setLastUpdate(payload.lastFetchTime)
+   370→   484→   553→   553→          setUpdateCount(c => c + 1)
+   371→   485→   554→   554→        }
+   372→   486→   555→   555→      })
+   373→   487→   556→   556→      .finally(() => setFetching(false))
+   374→   488→   557→   557→  }
+   375→   489→   558→   558→
+   376→   490→   559→   559→
+   377→   491→   560→   560→  const avgBlackMarketMargin = blackMarket.length > 0
+   378→   492→   561→   561→    ? Math.round(blackMarket.reduce((sum, i) => sum + i.marginPercent, 0) / blackMarket.length)
+   379→   493→   562→   562→    : 0
+   380→   494→   563→   563→
+   381→   495→   564→   564→  return (
+   382→   496→   565→   565→    <div className="min-h-screen flex flex-col bg-background">
+   383→   497→   566→   566→      {/* Header */}
+   384→   498→   567→   567→      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+   385→   499→   568→   568→        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+   386→   500→   569→   569→          <div className="flex items-center justify-between">
+   387→   501→   570→   570→            <div className="flex items-center gap-3">
+   388→   502→   571→   571→              <div className="p-2 rounded-lg bg-primary/20 border border-primary/30">
+   389→   503→   572→   572→                <ShoppingBag className="h-5 w-5 text-primary" />
+   390→   504→   573→   573→              </div>
+   391→   505→   574→   574→              <div>
+   392→   506→   575→   575→                <h1 className="text-lg sm:text-xl font-bold tracking-tight">
+   393→   507→   576→   576→                  Albion Market <span className="text-primary">Tracker</span>
+   394→   508→   577→   577→                </h1>
+   395→   509→   578→   578→                <p className="text-xs text-muted-foreground hidden sm:block">
+   396→   510→   579→   579→                  Donn\u00e9es en temps r\u00e9el du march\u00e9 &amp; black market
+   397→   511→   580→   580→                </p>
+   398→   512→   581→   581→              </div>
+   399→   513→   582→   582→            </div>
+   400→   514→   583→   583→            <div className="flex items-center gap-3">
+   401→   515→   584→   584→              <LiveIndicator connected={connected} lastUpdate={lastUpdate} updateCount={updateCount} fetching={fetching} />
+   402→   516→   585→   585→              <Button
+   403→   517→   586→   586→                variant="outline"
+   404→   518→   587→   587→                size="icon"
+   405→   519→   588→   588→                onClick={handleManualRefresh}
+   406→   520→   589→   589→                disabled={fetching}
+   407→   521→   590→   590→                title="Rafra\u00eechir"
+   408→   522→   591→   591→              >
+   409→   523→   592→   592→                <RefreshCw className={`h-4 w-4 ${fetching ? 'animate-spin' : ''}`} />
+   410→   524→   593→   593→              </Button>
+   411→   525→   594→   594→            </div>
+   412→   526→   595→   595→          </div>
+   413→   527→   596→   596→        </div>
+   414→   528→   597→   597→      </header>
+   415→   529→   598→   598→
+   416→   530→   599→   599→      {/* Main Content */}
+   417→   531→   600→   600→      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 space-y-6">
+   418→   532→   601→   601→        {/* Gold Ticker */}
+   419→   533→   602→   602→        <GoldTicker gold={gold} />
+   420→   534→   603→   603→
+   421→   535→   604→   604→        {/* Stats Row */}
+   422→   536→   605→   605→        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+   423→   537→   606→   606→          <StatCard
+   424→   538→   607→   607→            icon={BarChart3}
+   425→   539→   608→   608→            label="Items Suivis"
+   426→   540→   609→   609→            value={totalItems}
+   427→   541→   610→   610→            subtext="sur tous les march\u00e9s"
+   428→   542→   611→   611→            color="bg-primary/20 text-primary"
+   429→   543→   612→   612→          />
+   430→   544→   613→   613→          <StatCard
+   431→   545→   614→   614→            icon={TrendingUp}
+   432→   546→   615→   615→            label="Top Ventes"
+   433→   547→   616→   616→            value={topSelling.length}
+   434→   548→   617→   617→            subtext="items les plus actifs"
+   435→   549→   618→   618→            color="bg-emerald-500/20 text-emerald-400"
+   436→   550→   619→   619→          />
+   437→   551→   620→   620→          <StatCard
+   438→   552→   621→   621→            icon={Skull}
+   439→   553→   622→   622→            label="Black Market"
+   440→   554→   623→   623→            value={blackMarket.length}
+   441→   555→   624→   624→            subtext="opportunit\u00e9s d\u00e9tect\u00e9es"
+   442→   556→   625→   625→            color="bg-red-500/20 text-red-400"
+   443→   557→   626→   626→          />
+   444→   558→   627→   627→          <StatCard
+   445→   559→   628→   628→            icon={Coins}
+   446→   560→   629→   629→            label="Marge Moyenne"
+   447→   561→   630→   630→            value={`${avgBlackMarketMargin}%`}
+   448→   562→   631→   631→            subtext="marge b\u00e9n\u00e9ficiaire BM"
+   449→   563→   632→   632→            color="bg-amber-500/20 text-amber-400"
+   450→   564→   633→   633→          />
+   451→   565→   634→   634→        </div>
+   452→   566→   635→   635→
+   453→   567→   636→   636→        {loading ? (
+   454→   568→   637→   637→          <LoadingSkeleton />
+   455→   569→   638→   638→        ) : (
+   456→   570→   639→   639→          <Tabs defaultValue="market" className="space-y-4">
+   457→   571→   640→   640→            <TabsList className="grid w-full grid-cols-3">
+   458→   572→   641→   641→              <TabsTrigger value="market" className="flex items-center gap-2">
+   459→   573→   642→   642→                <TrendingUp className="h-4 w-4" />
+   460→   574→   643→   643→                <span className="hidden sm:inline">March\u00e9</span>
+   461→   575→   644→   644→              </TabsTrigger>
+   462→   576→   645→   645→              <TabsTrigger value="blackmarket" className="flex items-center gap-2">
+   463→   577→   646→   646→                <Skull className="h-4 w-4" />
+   464→   578→   647→   647→                <span className="hidden sm:inline">Black Market</span>
+   465→   579→   648→   648→              </TabsTrigger>
+   466→   580→   649→   649→              <TabsTrigger value="trending" className="flex items-center gap-2">
+   467→   581→   650→   650→                <Activity className="h-4 w-4" />
+   468→   582→   651→   651→                <span className="hidden sm:inline">Tendances</span>
+   469→   583→   652→   652→              </TabsTrigger>
+   470→   584→   653→   653→            </TabsList>
+   471→   585→   654→   654→
+   472→   586→   655→   655→            <TabsContent value="market" className="space-y-4">
+   473→   587→   656→   656→              <div>
+   474→   588→   657→   657→                <h2 className="text-lg font-semibold">Items les Plus Recherch\u00e9s & Vendus</h2>
+   475→   589→   658→   658→                <p className="text-sm text-muted-foreground">Class\u00e9s par volume d'activit\u00e9 sur tous les march\u00e9s royaux</p>
+   476→   590→   659→   659→              </div>
+   477→   591→   660→   660→              <ScrollArea className="max-h-[600px]">
+   478→   592→   661→   661→                <TopSellingTable items={topSelling} />
+   479→   593→   662→   662→              </ScrollArea>
+   480→   594→   663→   663→            </TabsContent>
+   481→   595→   664→   664→
+   482→   596→   665→   665→            <TabsContent value="blackmarket" className="space-y-4">
+   483→   597→   666→   666→              <div>
+   484→   598→   667→   667→                <h2 className="text-lg font-semibold flex items-center gap-2">
+   485→   599→   668→   668→                  <Skull className="h-5 w-5 text-red-400" />
+   486→   600→   669→   669→                  Opportunit\u00e9s Black Market
+   487→   601→   670→   670→                </h2>
+   488→   602→   671→   671→                <p className="text-sm text-muted-foreground">
+   489→   603→   672→   672→                  Acheter sur les march\u00e9s royaux et revendre au Black Market de Caerleon
+   490→   604→   673→   673→                </p>
+   491→   605→   674→   674→              </div>
+   492→   606→   675→   675→              <ScrollArea className="max-h-[600px]">
+   493→   607→   676→   676→                <BlackMarketTable items={blackMarket} />
+   494→   608→   677→   677→              </ScrollArea>
+   495→   609→   678→   678→            </TabsContent>
+   496→   610→   679→   679→
+   497→   611→   680→   680→            <TabsContent value="trending" className="space-y-4">
+   498→   612→   681→   681→              <div>
+   499→   613→   682→   682→                <h2 className="text-lg font-semibold">Tendances du March\u00e9</h2>
+   500→   614→   683→   683→                <p className="text-sm text-muted-foreground">
+   501→   615→   684→   684→                  Items les plus recherch\u00e9s avec \u00e9carts de prix inter-villes
+   502→   616→   685→   685→                </p>
+   503→   617→   686→   686→              </div>
+   504→   618→   687→   687→              <TrendingChart items={trending} />
+   505→   619→   688→   688→            </TabsContent>
+   506→   620→   689→   689→          </Tabs>
+   507→   621→   690→   690→        )}
+   508→   622→   691→   691→      </main>
+   509→   623→   692→   692→
+   510→   624→   693→   693→      {/* Footer */}
+   511→   625→   694→   694→      <footer className="border-t border-border/50 bg-background/80 backdrop-blur-xl mt-auto">
+   512→   626→   695→   695→        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+   513→   627→   696→   696→          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+   514→   628→   697→   697→            <p>Donn\u00e9es fournies par{' '}
+   515→   629→   698→   698→              <a href="https://www.albion-online-data.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+   516→   630→   699→   699→                Albion Online Data Project
+   517→   631→   700→   700→              </a>
+   518→   632→   701→   701→            </p>
+   519→   633→   702→   702→            <p className="flex items-center gap-1.5">
+   520→   634→   703→   703→              <Radio className="h-3 w-3 text-emerald-400" />
+   521→   635→   704→   704→              Flux SSE live \u2014 mise \u00e0 jour push toutes les 30s
+   522→   636→   705→   705→            </p>
+   523→   637→   706→   706→          </div>
+   524→   638→   707→   707→        </div>
+   525→   639→   708→   708→      </footer>
+   526→   640→   709→   709→    </div>
+   527→   641→   710→   710→  )
+   528→   642→   711→   711→}

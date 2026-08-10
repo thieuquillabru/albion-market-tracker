@@ -1,0 +1,642 @@
+    70→    70→  cityCount: number
+    71→    71→  spread: number
+    72→    72→  cities: { city: string; sellPrice: number | null; buyPrice: number | null }[]
+    73→    73→}
+    74→    74→
+    75→    75→interface GoldData {
+    76→    76→  timestamp: number
+    77→    77→  price: number
+    78→    78→}
+    79→    79→
+    80→    80→interface MarketPayload {
+    81→    81→  type: string
+    82→    82→  timestamp: string
+    83→    83→  lastFetchTime: number
+    84→    84→  gold: GoldData | null
+    85→    85→  data: {
+    86→    86→    topSelling: TopSellingItem[]
+    87→    87→    blackMarket: BlackMarketItem[]
+    88→    88→    trending: TrendingItem[]
+    89→    89→    totalItemsTracked: number
+    90→    90→  }
+    91→    91→}
+    92→    92→
+    93→    93→// --- Utility functions ---
+    94→    94→function formatSilver(price: number | null): string {
+    95→    95→  if (price === null || price === undefined) return '-'
+    96→    96→  if (price >= 1000000) return `${(price / 1000000).toFixed(2)}M`
+    97→    97→  if (price >= 1000) return `${(price / 1000).toFixed(1)}K`
+    98→    98→  return price.toString()
+    99→    99→}
+   100→   100→
+   101→   101→function formatGoldPrice(price: number): string {
+   102→   102→  return price.toLocaleString('fr-FR')
+   103→   103→}
+   104→   104→
+   105→   105→function timeAgo(timestamp: number): string {
+   106→   106→  const seconds = Math.floor((Date.now() - timestamp) / 1000)
+   107→   107→  if (seconds < 10) return "\u00e0 l'instant"
+   108→   108→  if (seconds < 60) return `il y a ${seconds}s`
+   109→   109→  const minutes = Math.floor(seconds / 60)
+   110→   110→  if (minutes < 60) return `il y a ${minutes}min`
+   111→   111→  const hours = Math.floor(minutes / 60)
+   112→   112→  return `il y a ${hours}h`
+   113→   113→}
+   114→   114→
+   115→   115→function getTierColor(name: string): string {
+   116→   116→  if (name.includes('T8')) return 'text-amber-400'
+   117→   117→  if (name.includes('T7')) return 'text-purple-400'
+   118→   118→  if (name.includes('T6')) return 'text-orange-400'
+   119→   119→  if (name.includes('T5')) return 'text-sky-400'
+   120→   120→  return 'text-foreground'
+   121→   121→}
+   122→   122→
+   123→   123→function getTierBadgeVariant(name: string): 'default' | 'secondary' | 'outline' | 'destructive' {
+   124→   124→  if (name.includes('T8')) return 'default'
+   125→   125→  if (name.includes('T7')) return 'secondary'
+   126→   126→  return 'outline'
+   127→   127→}
+   128→   128→
+   129→   129→function getTierLabel(name: string): string {
+   130→   130→  const match = name.match(/T(\d)/)
+   131→   131→  return match ? `Tier ${match[1]}` : ''
+   132→   132→}
+   133→   133→
+   134→   134→function getItemCategory(name: string): string {
+   135→   135→  const lower = name.toLowerCase()
+   136→   136→  if (lower.includes('sword') || lower.includes('broadsword') || lower.includes('claymore') || lower.includes('dual') || lower.includes('escimitar')) return 'Arme Blanche'
+   137→   137→  if (lower.includes('dagger') || lower.includes('katar') || lower.includes('shadow dagger')) return 'Arme Blanche'
+   138→   138→  if (lower.includes('staff') || lower.includes('arcane')) return 'B\u00e2ton Magique'
+   139→   139→  if (lower.includes('bow') || lower.includes('crossbow') || lower.includes('longbow') || lower.includes('warbow')) return 'Arme \u00e0 Distance'
+   140→   140→  if (lower.includes('hammer') || lower.includes('mace') || lower.includes('battleaxe') || lower.includes('halberd') || lower.includes('quarterstaff')) return 'Arme de M\u00eal\u00e9e'
+   141→   141→  if (lower.includes('head') || lower.includes('armor') || lower.includes('bag') || lower.includes('cape')) return 'Armure'
+   142→   142→  if (lower.includes('ore') || lower.includes('wood') || lower.includes('fiber') || lower.includes('hide') || lower.includes('rock') || lower.includes('sand')) return 'Ressource'
+   143→   143→  if (lower.includes('metalbar') || lower.includes('plank') || lower.includes('cloth') || lower.includes('leather') || lower.includes('stoneblock')) return 'Mat\u00e9riau'
+   144→   144→  if (lower.includes('potion')) return 'Potion'
+   145→   145→  if (lower.includes('pork') || lower.includes('chicken') || lower.includes('beet') || lower.includes('cabbage') || lower.includes('potato') || lower.includes('corn') || lower.includes('mushroom')) return 'Nourriture'
+   146→   146→  if (lower.includes('mount')) return 'Monture'
+   147→   147→  if (lower.includes('rune') || lower.includes('soul') || lower.includes('relic')) return 'Rune'
+   148→   148→  if (lower.includes('book') || lower.includes('journal')) return 'Livre'
+   149→   149→  if (lower.includes('avalonian')) return 'Avalonien'
+   150→   150→  if (lower.includes('royal')) return 'Royal'
+   151→   151→  if (lower.includes('artifact')) return 'Art\u00e9fact'
+   152→   152→  if (lower.includes('farm')) return 'Farming'
+   153→   153→  return 'Autre'
+   154→   154→}
+   155→   155→
+   156→   156→// --- Components ---
+   157→   157→
+   158→   158→function LiveIndicator({ connected, lastUpdate, updateCount, fetching }: { connected: boolean; lastUpdate: number; updateCount: number; fetching: boolean }) {
+   159→   159→  return (
+   160→   160→    <div className="flex items-center gap-3 text-sm">
+   161→   161→      <div className="flex items-center gap-2">
+   162→   162→        <span className="relative flex h-2.5 w-2.5">
+   163→   163→          <span className={`live-pulse absolute inline-flex h-full w-full rounded-full opacity-75 ${!connected ? 'bg-red-400' : fetching ? 'bg-amber-400' : 'bg-emerald-400'}`}></span>
+   164→   164→          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${!connected ? 'bg-red-500' : fetching ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
+   165→   165→        </span>
+   166→   166→        <span className={`${!connected ? 'text-red-400' : fetching ? 'text-amber-400' : 'text-emerald-400'} font-medium flex items-center gap-1.5`}>
+   167→   167→          <Radio className="h-3.5 w-3.5" />
+   168→   168→          {!connected ? 'HORS LIGNE' : fetching ? 'SYNC...' : 'LIVE'}
+   169→   169→        </span>
+   170→   170→      </div>
+   171→   171→      {connected && updateCount > 0 && (
+   172→   172→        <span className="text-xs text-muted-foreground font-mono">
+   173→   173→          {updateCount} mises \u00e0 jour re\u00e7ues
+   174→   174→        </span>
+   175→   175→      )}
+   176→   176→      {lastUpdate > 0 && (
+   177→   177→        <div className="hidden sm:flex items-center gap-1.5 text-muted-foreground">
+   178→   178→          <Clock className="h-3.5 w-3.5" />
+   179→   179→          <span>{timeAgo(lastUpdate)}</span>
+   180→   180→        </div>
+   181→   181→      )}
+   182→   182→    </div>
+   183→   183→  )
+   184→   184→}
+   185→   185→
+   186→   186→function GoldTicker({ gold }: { gold: GoldData | null }) {
+   187→   187→  return (
+   188→   188→    <Card className="border-amber-500/30 bg-gradient-to-r from-amber-950/40 to-card">
+   189→   189→      <CardContent className="p-4">
+   190→   190→        <div className="flex items-center justify-between">
+   191→   191→          <div className="flex items-center gap-3">
+   192→   192→            <div className="p-2 rounded-lg bg-amber-500/20">
+   193→   193→              <Coins className="h-5 w-5 text-amber-400" />
+   194→   194→            </div>
+   195→   195→            <div>
+   196→   196→              <p className="text-xs text-muted-foreground uppercase tracking-wider">Prix de l'Or</p>
+   197→   197→              <p className="text-2xl font-bold text-amber-400 font-mono">
+   198→   198→                {gold ? formatGoldPrice(gold.price) : '...'}{' '}
+   199→   199→                <span className="text-sm text-muted-foreground font-sans">argent/or</span>
+   200→   200→              </p>
+   201→   201→            </div>
+   202→   202→          </div>
+   203→   203→          {gold && (
+   204→   204→            <div className="text-right">
+   205→   205→              <p className="text-xs text-muted-foreground">
+   206→   206→                {new Date(gold.timestamp).toLocaleString('fr-FR')}
+   207→   207→              </p>
+   208→   208→            </div>
+   209→   209→          )}
+   210→   210→        </div>
+   211→   211→      </CardContent>
+   212→   212→    </Card>
+   213→   213→  )
+   214→   214→}
+   215→   215→
+   216→   216→function StatCard({ icon: Icon, label, value, subtext, color }: { icon: React.ElementType; label: string; value: string | number; subtext?: string; color: string }) {
+   217→   217→  return (
+   218→   218→    <Card>
+   219→   219→      <CardContent className="p-4">
+   220→   220→        <div className="flex items-center gap-3">
+   221→   221→          <div className={`p-2 rounded-lg ${color}`}>
+   222→   222→            <Icon className="h-4 w-4" />
+   223→   223→          </div>
+   224→   224→          <div>
+   225→   225→            <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
+   226→   226→            <p className="text-xl font-bold font-mono">{value}</p>
+   227→   227→            {subtext && <p className="text-xs text-muted-foreground">{subtext}</p>}
+   228→   228→          </div>
+   229→   229→        </div>
+   230→   230→      </CardContent>
+   231→   231→    </Card>
+   232→   232→  )
+   233→   233→}
+   234→   234→
+   235→   235→function TopSellingTable({ items }: { items: TopSellingItem[] }) {
+   236→   236→  return (
+   237→   237→    <div className="rounded-lg border overflow-hidden">
+   238→   238→      <Table>
+   239→   239→        <TableHeader>
+   240→   240→          <TableRow className="hover:bg-transparent border-border/50">
+   241→   241→            <TableHead className="w-8 text-center">#</TableHead>
+   242→   242→            <TableHead>Item</TableHead>
+   243→   243→            <TableHead className="hidden md:table-cell">Cat\u00e9gorie</TableHead>
+   244→   244→            <TableHead className="text-right">Prix Vente</TableHead>
+   245→   245→            <TableHead className="text-right hidden sm:table-cell">Prix Achat</TableHead>
+   246→   246→            <TableHead className="text-right hidden lg:table-cell">Prix Moyen</TableHead>
+   247→   247→            <TableHead className="hidden lg:table-cell">Meilleur March\u00e9</TableHead>
+   248→   248→            <TableHead className="text-center">Activit\u00e9</TableHead>
+   249→   249→          </TableRow>
+   250→   250→        </TableHeader>
+   251→   251→        <TableBody>
+   252→   252→          {items.map((item, idx) => (
+   253→   253→            <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
+   254→   254→              <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
+   255→   255→              <TableCell>
+   256→   256→                <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
+   257→   257→              </TableCell>
+   258→   258→              <TableCell className="hidden md:table-cell">
+   259→   259→                <Badge variant={getTierBadgeVariant(item.name)} className="text-xs">
+   260→   260→                  {getItemCategory(item.name)}
+   261→   261→                </Badge>
+   262→   262→              </TableCell>
+   263→   263→              <TableCell className="text-right font-mono text-emerald-400">
+   264→   264→                {item.bestSellPrice ? formatSilver(item.bestSellPrice) : '-'}
+   265→   265→              </TableCell>
+   266→   266→              <TableCell className="text-right font-mono text-amber-400 hidden sm:table-cell">
+   267→   267→                {item.bestBuyPrice ? formatSilver(item.bestBuyPrice) : '-'}
+   268→   268→              </TableCell>
+   269→   269→              <TableCell className="text-right font-mono hidden lg:table-cell">
+   270→   270→                {item.avgSellPrice ? formatSilver(item.avgSellPrice) : '-'}
+   271→   271→              </TableCell>
+   272→   272→              <TableCell className="hidden lg:table-cell">
+   273→   273→                {item.bestSellCity ? (
+   274→   274→                  <Badge variant="outline" className="text-xs font-normal">{item.bestSellCity}</Badge>
+   275→   275→                ) : '-'}
+   276→   276→              </TableCell>
+   277→   277→              <TableCell className="text-center">
+   278→   278→                <div className="flex items-center justify-center gap-1">
+   279→   279→                  <Activity className="h-3.5 w-3.5 text-primary" />
+   280→   280→                  <span className="font-mono text-sm">{item.totalVolume}</span>
+   281→   281→                </div>
+   282→   282→              </TableCell>
+   283→   283→            </TableRow>
+   284→   284→          ))}
+   285→   285→          {items.length === 0 && (
+   286→   286→            <TableRow>
+   287→   287→              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+   288→   288→                Aucune donn\u00e9e disponible. Patientez pendant le chargement...
+   289→   289→              </TableCell>
+   290→   290→            </TableRow>
+   291→   291→          )}
+   292→   292→        </TableBody>
+   293→   293→      </Table>
+   294→   294→    </div>
+   295→   295→  )
+   296→   296→}
+   297→   297→
+   298→   298→function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
+   299→   299→  return (
+   300→   300→    <div className="rounded-lg border overflow-hidden">
+   301→   301→      <Table>
+   302→   302→        <TableHeader>
+   303→   303→          <TableRow className="hover:bg-transparent border-border/50">
+   304→   304→            <TableHead className="w-8 text-center">#</TableHead>
+   305→   305→            <TableHead>Item</TableHead>
+   306→   306→            <TableHead className="text-right">Black Market</TableHead>
+   307→   307→            <TableHead className="text-right hidden sm:table-cell">Source</TableHead>
+   308→   308→            <TableHead className="hidden md:table-cell">Ville Source</TableHead>
+   309→   309→            <TableHead className="text-right">Profit</TableHead>
+   310→   310→            <TableHead className="text-right">Marge</TableHead>
+   311→   311→          </TableRow>
+   312→   312→        </TableHeader>
+   313→   313→        <TableBody>
+   314→   314→          {items.map((item, idx) => (
+   315→   315→            <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
+   316→   316→              <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
+   317→   317→              <TableCell>
+   318→   318→                <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
+   319→   319→              </TableCell>
+   320→   320→              <TableCell className="text-right font-mono text-amber-400">
+   321→   321→                {formatSilver(item.blackMarketPrice)}
+   322→   322→              </TableCell>
+   323→   323→              <TableCell className="text-right font-mono hidden sm:table-cell">
+   324→   324→                {formatSilver(item.sourcePrice)}
+   325→   325→              </TableCell>
+   326→   326→              <TableCell className="hidden md:table-cell">
+   327→   327→                <Badge variant="outline" className="text-xs font-normal">{item.sourceCity}</Badge>
+   328→   328→              </TableCell>
+   329→   329→              <TableCell className="text-right font-mono text-emerald-400">
+   330→   330→                +{formatSilver(item.profit)}
+   331→   331→              </TableCell>
+   332→   332→              <TableCell className="text-right">
+   333→   333→                <div className="flex items-center justify-end gap-1">
+   334→   334→                  <ArrowUpRight className={`h-4 w-4 ${item.marginPercent > 30 ? 'text-emerald-400' : 'text-amber-400'}`} />
+   335→   335→                  <span className={`font-mono font-semibold ${item.marginPercent > 30 ? 'text-emerald-400' : 'text-amber-400'}`}>
+   336→   336→                    +{item.marginPercent}%
+   337→   337→                  </span>
+   338→   338→                </div>
+   339→   339→              </TableCell>
+   340→   340→            </TableRow>
+   341→   341→          ))}
+   342→   342→          {items.length === 0 && (
+   343→   343→            <TableRow>
+   344→   344→              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+   345→   345→                Aucune opportunit\u00e9 de profit trouv\u00e9e sur le Black Market
+   346→   346→              </TableCell>
+   347→   347→            </TableRow>
+   348→   348→          )}
+   349→   349→        </TableBody>
+   350→   350→      </Table>
+   351→   351→    </div>
+   352→   352→  )
+   353→   353→}
+   354→   354→
+   355→   355→function TrendingChart({ items }: { items: TrendingItem[] }) {
+   356→   356→  const chartData = items.slice(0, 12).map(item => ({
+   357→   357→    name: item.name.length > 22 ? item.name.substring(0, 22) + '...' : item.name,
+   358→   358→    fullName: item.name,
+   359→   359→    minPrice: item.minPrice,
+   360→   360→    maxPrice: item.maxPrice,
+   361→   361→    avgPrice: item.avgPrice,
+   362→   362→    spread: item.spread,
+   363→   363→    cityCount: item.cityCount,
+   364→   364→  }))
+   365→   365→
+   366→   366→  return (
+   367→   367→    <div className="space-y-6">
+   368→   368→      <Card>
+   369→   369→        <CardHeader className="pb-2">
+   370→   370→          <CardTitle className="text-base flex items-center gap-2">
+   371→   371→            <BarChart3 className="h-4 w-4 text-primary" />
+   372→   372→            \u00c9cart de Prix par Item (Min vs Max)
+   373→   373→          </CardTitle>
+   374→   374→          <CardDescription>Les items avec le plus grand \u00e9cart entre la ville la moins ch\u00e8re et la plus ch\u00e8re</CardDescription>
+   375→   375→        </CardHeader>
+   376→   376→        <CardContent>
+   377→   377→          <div className="h-80">
+   378→   378→            <ResponsiveContainer width="100%" height="100%">
+   379→   379→              <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 60 }}>
+   380→   380→                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0.02 260)" />
+   381→   381→                <XAxis
+   382→   382→                  dataKey="name"
+   383→   383→                  tick={{ fill: 'oklch(0.65 0.02 260)', fontSize: 11 }}
+   384→   384→                  angle={-35}
+   385→   385→                  textAnchor="end"
+   386→   386→                  height={80}
+   387→   387→                />
+   388→   388→                <YAxis
+   389→   389→                  tick={{ fill: 'oklch(0.65 0.02 260)', fontSize: 11 }}
+   390→   390→                  tickFormatter={(v: number) => formatSilver(v)}
+   391→   391→                />
+   392→   392→                <RechartsTooltip
+   393→   393→                  contentStyle={{
+   394→   394→                    backgroundColor: 'oklch(0.17 0.012 260)',
+   395→   395→                    border: '1px solid oklch(0.3 0.02 260)',
+   396→   396→                    borderRadius: '8px',
+   397→   397→                    color: 'oklch(0.93 0.01 80)',
+   398→   398→                  }}
+   399→   399→                  formatter={(value: number, name: string) => [formatSilver(value), name === 'minPrice' ? 'Prix Min' : name === 'maxPrice' ? 'Prix Max' : name === 'avgPrice' ? 'Prix Moyen' : name]}
+   400→   400→                  labelFormatter={(label: string, payload?: Array<{ payload?: { fullName?: string } }>) => {
+   401→   401→                    if (payload && payload.length > 0 && payload[0].payload?.fullName) {
+   402→   402→                      return payload[0].payload.fullName
+   403→   403→                    }
+   404→   404→                    return label
+   405→   405→                  }}
+   406→   406→                />
+   407→   407→                <Bar dataKey="minPrice" fill="oklch(0.65 0.2 155)" radius={[2, 0, 0, 2]} name="Prix Min" />
+   408→   408→                <Bar dataKey="maxPrice" fill="oklch(0.65 0.2 25)" radius={[0, 2, 2, 0]} name="Prix Max" />
+   409→   409→              </BarChart>
+   410→   410→            </ResponsiveContainer>
+   411→   411→          </div>
+   412→   412→        </CardContent>
+   413→   413→      </Card>
+   414→   414→
+   415→   415→      <Card>
+   416→   416→        <CardHeader className="pb-2">
+   417→   417→          <CardTitle className="text-base flex items-center gap-2">
+   418→   418→            <Search className="h-4 w-4 text-primary" />
+   419→   419→            D\u00e9tail des Tendances
+   420→   420→          </CardTitle>
+   421→   421→          <CardDescription>Items les plus recherch\u00e9s avec leurs prix par ville</CardDescription>
+   422→   422→        </CardHeader>
+   423→   423→        <CardContent>
+   424→   424→          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+   425→   425→            {items.map((item) => (
+   426→   426→              <div key={item.itemId} className="p-3 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors">
+   427→   427→                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+   428→   428→                  <div className="flex items-center gap-2 flex-wrap">
+   429→   429→                    <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
+   430→   430→                    <Badge variant={getTierBadgeVariant(item.name)} className="text-xs">{getTierLabel(item.name)}</Badge>
+   431→   431→                    <Badge variant="outline" className="text-xs">{item.cityCount} villes</Badge>
+   432→   432→                  </div>
+   433→   433→                  <div className="flex items-center gap-3 text-sm flex-wrap">
+   434→   434→                    <span className="text-muted-foreground">Moy: <span className="font-mono text-foreground">{formatSilver(item.avgPrice)}</span></span>
+   435→   435→                    <span className="text-emerald-400">Min: <span className="font-mono">{formatSilver(item.minPrice)}</span></span>
+   436→   436→                    <span className="text-red-400">Max: <span className="font-mono">{formatSilver(item.maxPrice)}</span></span>
+   437→   437→                  </div>
+   438→   438→                </div>
+   439→   439→                <div className="flex flex-wrap gap-2">
+   440→   440→                  {item.cities.map((c) => (
+   441→   441→                    <div key={c.city} className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-background/50 text-xs">
+   442→   442→                      <span className="text-muted-foreground">{c.city}:</span>
+   443→   443→                      {c.sellPrice && <span className="font-mono text-emerald-400">V {formatSilver(c.sellPrice)}</span>}
+   444→   444→                      {c.buyPrice && c.buyPrice > 0 && <span className="font-mono text-amber-400">A {formatSilver(c.buyPrice)}</span>}
+   445→   445→                    </div>
+   446→   446→                  ))}
+   447→   447→                </div>
+   448→   448→              </div>
+   449→   449→            ))}
+   450→   450→            {items.length === 0 && (
+   451→   451→              <div className="text-center py-8 text-muted-foreground">Aucune tendance disponible</div>
+   452→   452→            )}
+   453→   453→          </div>
+   454→   454→        </CardContent>
+   455→   455→      </Card>
+   456→   456→    </div>
+   457→   457→  )
+   458→   458→}
+   459→   459→
+   460→   460→function LoadingSkeleton() {
+   461→   461→  return (
+   462→   462→    <div className="space-y-6">
+   463→   463→      <Skeleton className="h-20 rounded-lg" />
+   464→   464→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   465→   465→        <Skeleton className="h-20 rounded-lg" />
+   466→   466→        <Skeleton className="h-20 rounded-lg" />
+   467→   467→        <Skeleton className="h-20 rounded-lg" />
+   468→   468→        <Skeleton className="h-20 rounded-lg" />
+   469→   469→      </div>
+   470→   470→      <Skeleton className="h-64 rounded-lg" />
+   471→   471→      <div className="space-y-2">
+   472→   472→        {Array.from({ length: 8 }).map((_, i) => (
+   473→   473→          <Skeleton key={i} className="h-12 rounded-lg" />
+   474→   474→        ))}
+   475→   475→      </div>
+   476→   476→    </div>
+   477→   477→  )
+   478→   478→}
+   479→   479→
+   480→   480→// --- Main Page ---
+   481→   481→export default function AlbionMarketTracker() {
+   482→   482→  const [lastUpdate, setLastUpdate] = useState(0)
+   483→   483→  const [gold, setGold] = useState<GoldData | null>(null)
+   484→   484→  const [topSelling, setTopSelling] = useState<TopSellingItem[]>([])
+   485→   485→  const [blackMarket, setBlackMarket] = useState<BlackMarketItem[]>([])
+   486→   486→  const [trending, setTrending] = useState<TrendingItem[]>([])
+   487→   487→  const [totalItems, setTotalItems] = useState(0)
+   488→   488→  const [loading, setLoading] = useState(true)
+   489→   489→  const [fetching, setFetching] = useState(false)
+   490→   490→  const [connected, setConnected] = useState(false)
+   491→   491→  const [updateCount, setUpdateCount] = useState(0)
+   492→   492→  const lastFetchTimeRef = useRef(0)
+   493→   493→  const pollSeqRef = useRef(0)
+   494→   494→
+   495→   495→  // Update "time ago" ticker every 5s
+   496→   496→  const [, setTick] = useState(0)
+   497→   497→  useEffect(() => {
+   498→   498→    const interval = setInterval(() => setTick(t => t + 1), 5000)
+   499→   499→    return () => clearInterval(interval)
+   500→   500→  }, [])
+   501→   501→
+   502→   502→  // Smart polling: polls /api/stream every 5s, only updates UI when data changes
+   503→   503→  useEffect(() => {
+   504→   504→    let active = true
+   505→   505→
+   506→   506→    async function poll() {
+   507→   507→      if (!active) return
+   508→   508→      try {
+   509→   509→        const res = await fetch('/api/stream')
+   510→   510→        if (!res.ok) { setConnected(false); return }
+   511→   511→        const payload: MarketPayload & { serverTime: number } = await res.json()
+   512→   512→        if (!active || payload.type !== 'market-update' || !payload.data) return
+   513→   513→
+   514→   514→        if (payload.lastFetchTime !== lastFetchTimeRef.current) {
+   515→   515→          lastFetchTimeRef.current = payload.lastFetchTime
+   516→   516→          setGold(payload.gold)
+   517→   517→          setTopSelling(payload.data.topSelling)
+   518→   518→          setBlackMarket(payload.data.blackMarket)
+   519→   519→          setTrending(payload.data.trending)
+   520→   520→          setTotalItems(payload.data.totalItemsTracked)
+   521→   521→          setLastUpdate(payload.lastFetchTime)
+   522→   522→          setUpdateCount(c => c + 1)
+   523→   523→          setLoading(false)
+   524→   524→          pollSeqRef.current++
+   525→   525→          console.log(`[LIVE] Update #${pollSeqRef.current} - server data from ${new Date(payload.lastFetchTime).toLocaleTimeString('fr-FR')}`)
+   526→   526→        }
+   527→   527→        setConnected(true)
+   528→   528→        setFetching(false)
+   529→   529→      } catch {
+   530→   530→        setConnected(false)
+   531→   531→      }
+   532→   532→    }
+   533→   533→
+   534→   534→    poll()
+   535→   535→    const interval = setInterval(poll, 5000)
+   536→   536→    return () => { active = false; clearInterval(interval) }
+   537→   537→  }, [])
+   538→   538→
+   539→   539→  const handleManualRefresh = () => {
+   540→   540→    setFetching(true)
+   541→   541→    lastFetchTimeRef.current = 0
+   542→   542→    fetch('/api/stream')
+   543→   543→      .then(r => r.json())
+   544→   544→      .then((payload: MarketPayload) => {
+   545→   545→        if (payload.type === 'market-update' && payload.data) {
+   546→   546→          lastFetchTimeRef.current = payload.lastFetchTime
+   547→   547→          setGold(payload.gold)
+   548→   548→          setTopSelling(payload.data.topSelling)
+   549→   549→          setBlackMarket(payload.data.blackMarket)
+   550→   550→          setTrending(payload.data.trending)
+   551→   551→          setTotalItems(payload.data.totalItemsTracked)
+   552→   552→          setLastUpdate(payload.lastFetchTime)
+   553→   553→          setUpdateCount(c => c + 1)
+   554→   554→        }
+   555→   555→      })
+   556→   556→      .finally(() => setFetching(false))
+   557→   557→  }
+   558→   558→
+   559→   559→
+   560→   560→  const avgBlackMarketMargin = blackMarket.length > 0
+   561→   561→    ? Math.round(blackMarket.reduce((sum, i) => sum + i.marginPercent, 0) / blackMarket.length)
+   562→   562→    : 0
+   563→   563→
+   564→   564→  return (
+   565→   565→    <div className="min-h-screen flex flex-col bg-background">
+   566→   566→      {/* Header */}
+   567→   567→      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+   568→   568→        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+   569→   569→          <div className="flex items-center justify-between">
+   570→   570→            <div className="flex items-center gap-3">
+   571→   571→              <div className="p-2 rounded-lg bg-primary/20 border border-primary/30">
+   572→   572→                <ShoppingBag className="h-5 w-5 text-primary" />
+   573→   573→              </div>
+   574→   574→              <div>
+   575→   575→                <h1 className="text-lg sm:text-xl font-bold tracking-tight">
+   576→   576→                  Albion Market <span className="text-primary">Tracker</span>
+   577→   577→                </h1>
+   578→   578→                <p className="text-xs text-muted-foreground hidden sm:block">
+   579→   579→                  Donn\u00e9es en temps r\u00e9el du march\u00e9 &amp; black market
+   580→   580→                </p>
+   581→   581→              </div>
+   582→   582→            </div>
+   583→   583→            <div className="flex items-center gap-3">
+   584→   584→              <LiveIndicator connected={connected} lastUpdate={lastUpdate} updateCount={updateCount} fetching={fetching} />
+   585→   585→              <Button
+   586→   586→                variant="outline"
+   587→   587→                size="icon"
+   588→   588→                onClick={handleManualRefresh}
+   589→   589→                disabled={fetching}
+   590→   590→                title="Rafra\u00eechir"
+   591→   591→              >
+   592→   592→                <RefreshCw className={`h-4 w-4 ${fetching ? 'animate-spin' : ''}`} />
+   593→   593→              </Button>
+   594→   594→            </div>
+   595→   595→          </div>
+   596→   596→        </div>
+   597→   597→      </header>
+   598→   598→
+   599→   599→      {/* Main Content */}
+   600→   600→      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 space-y-6">
+   601→   601→        {/* Gold Ticker */}
+   602→   602→        <GoldTicker gold={gold} />
+   603→   603→
+   604→   604→        {/* Stats Row */}
+   605→   605→        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+   606→   606→          <StatCard
+   607→   607→            icon={BarChart3}
+   608→   608→            label="Items Suivis"
+   609→   609→            value={totalItems}
+   610→   610→            subtext="sur tous les march\u00e9s"
+   611→   611→            color="bg-primary/20 text-primary"
+   612→   612→          />
+   613→   613→          <StatCard
+   614→   614→            icon={TrendingUp}
+   615→   615→            label="Top Ventes"
+   616→   616→            value={topSelling.length}
+   617→   617→            subtext="items les plus actifs"
+   618→   618→            color="bg-emerald-500/20 text-emerald-400"
+   619→   619→          />
+   620→   620→          <StatCard
+   621→   621→            icon={Skull}
+   622→   622→            label="Black Market"
+   623→   623→            value={blackMarket.length}
+   624→   624→            subtext="opportunit\u00e9s d\u00e9tect\u00e9es"
+   625→   625→            color="bg-red-500/20 text-red-400"
+   626→   626→          />
+   627→   627→          <StatCard
+   628→   628→            icon={Coins}
+   629→   629→            label="Marge Moyenne"
+   630→   630→            value={`${avgBlackMarketMargin}%`}
+   631→   631→            subtext="marge b\u00e9n\u00e9ficiaire BM"
+   632→   632→            color="bg-amber-500/20 text-amber-400"
+   633→   633→          />
+   634→   634→        </div>
+   635→   635→
+   636→   636→        {loading ? (
+   637→   637→          <LoadingSkeleton />
+   638→   638→        ) : (
+   639→   639→          <Tabs defaultValue="market" className="space-y-4">
+   640→   640→            <TabsList className="grid w-full grid-cols-3">
+   641→   641→              <TabsTrigger value="market" className="flex items-center gap-2">
+   642→   642→                <TrendingUp className="h-4 w-4" />
+   643→   643→                <span className="hidden sm:inline">March\u00e9</span>
+   644→   644→              </TabsTrigger>
+   645→   645→              <TabsTrigger value="blackmarket" className="flex items-center gap-2">
+   646→   646→                <Skull className="h-4 w-4" />
+   647→   647→                <span className="hidden sm:inline">Black Market</span>
+   648→   648→              </TabsTrigger>
+   649→   649→              <TabsTrigger value="trending" className="flex items-center gap-2">
+   650→   650→                <Activity className="h-4 w-4" />
+   651→   651→                <span className="hidden sm:inline">Tendances</span>
+   652→   652→              </TabsTrigger>
+   653→   653→            </TabsList>
+   654→   654→
+   655→   655→            <TabsContent value="market" className="space-y-4">
+   656→   656→              <div>
+   657→   657→                <h2 className="text-lg font-semibold">Items les Plus Recherch\u00e9s & Vendus</h2>
+   658→   658→                <p className="text-sm text-muted-foreground">Class\u00e9s par volume d'activit\u00e9 sur tous les march\u00e9s royaux</p>
+   659→   659→              </div>
+   660→   660→              <ScrollArea className="max-h-[600px]">
+   661→   661→                <TopSellingTable items={topSelling} />
+   662→   662→              </ScrollArea>
+   663→   663→            </TabsContent>
+   664→   664→
+   665→   665→            <TabsContent value="blackmarket" className="space-y-4">
+   666→   666→              <div>
+   667→   667→                <h2 className="text-lg font-semibold flex items-center gap-2">
+   668→   668→                  <Skull className="h-5 w-5 text-red-400" />
+   669→   669→                  Opportunit\u00e9s Black Market
+   670→   670→                </h2>
+   671→   671→                <p className="text-sm text-muted-foreground">
+   672→   672→                  Acheter sur les march\u00e9s royaux et revendre au Black Market de Caerleon
+   673→   673→                </p>
+   674→   674→              </div>
+   675→   675→              <ScrollArea className="max-h-[600px]">
+   676→   676→                <BlackMarketTable items={blackMarket} />
+   677→   677→              </ScrollArea>
+   678→   678→            </TabsContent>
+   679→   679→
+   680→   680→            <TabsContent value="trending" className="space-y-4">
+   681→   681→              <div>
+   682→   682→                <h2 className="text-lg font-semibold">Tendances du March\u00e9</h2>
+   683→   683→                <p className="text-sm text-muted-foreground">
+   684→   684→                  Items les plus recherch\u00e9s avec \u00e9carts de prix inter-villes
+   685→   685→                </p>
+   686→   686→              </div>
+   687→   687→              <TrendingChart items={trending} />
+   688→   688→            </TabsContent>
+   689→   689→          </Tabs>
+   690→   690→        )}
+   691→   691→      </main>
+   692→   692→
+   693→   693→      {/* Footer */}
+   694→   694→      <footer className="border-t border-border/50 bg-background/80 backdrop-blur-xl mt-auto">
+   695→   695→        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+   696→   696→          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+   697→   697→            <p>Donn\u00e9es fournies par{' '}
+   698→   698→              <a href="https://www.albion-online-data.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+   699→   699→                Albion Online Data Project
+   700→   700→              </a>
+   701→   701→            </p>
+   702→   702→            <p className="flex items-center gap-1.5">
+   703→   703→              <Radio className="h-3 w-3 text-emerald-400" />
+   704→   704→              Flux SSE live \u2014 mise \u00e0 jour push toutes les 30s
+   705→   705→            </p>
+   706→   706→          </div>
+   707→   707→        </div>
+   708→   708→      </footer>
+   709→   709→    </div>
+   710→   710→  )
+   711→   711→}
