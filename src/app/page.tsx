@@ -85,8 +85,38 @@ function getItemCategory(name: string): string {
   return 'Autre'
 }
 
+function getRenderId(dataProjectId: string): string {
+  const m = dataProjectId.match(/^(T\d+_|)(.+)$/)
+  if (!m) return dataProjectId
+  const tier = m[1] || ''
+  const base = m[2]
+  const MAP: Record<string, string> = {
+    ARMORED_SWORD:'MAIN_SWORD',BROADSWORD:'MAIN_SWORD',CLAYMORE:'2H_CLAYMORE',DUAL_SWORDS:'2H_DUALSWORD',
+    FIRE_STAFF:'MAIN_FIRESTAFF',FROST_STAFF:'MAIN_FROSTSTAFF',HOLY_STAFF:'MAIN_HOLYSTAFF',
+    ARCANESTAFF:'MAIN_ARCANESTAFF',NATURE_STAFF:'MAIN_NATURESTAFF',
+    BOW:'2H_BOW',CROSSBOW:'MAIN_1HCROSSBOW',LONGBOW:'2H_LONGBOW',WARBOW:'2H_WARBOW',
+    DAGGER:'MAIN_DAGGER',KATAR:'2H_KATAR',SHADOW_DAGGER:'MAIN_DAGGER_HELL',
+    HAMMER:'MAIN_HAMMER',MACE:'MAIN_MACE',BATTLEAXE:'MAIN_AXE',
+    HALBERD:'2H_HALBERD',QUARTERSTAFF:'2H_QUARTERSTAFF',ESCIMITAR:'MAIN_SCIMITAR_MORGANA',
+    CAPEMAGE:'CAPEITEM_MORGANA',CAPERANGER:'CAPEITEM_KEEPER',CAPEMERCENARY:'CAPEITEM_HERETIC',
+    CAPEINQUISITOR:'CAPEITEM_UNDEAD',CAPEVALKYRIE:'CAPEITEM_AVALON',CAPEHELL:'CAPEITEM_DEMON',
+    AVALONIAN_SWORD:'MAIN_SWORD_CRYSTAL',AVALONIAN_FIRE:'MAIN_FIRESTAFF_CRYSTAL',
+    AVALONIAN_FROST:'MAIN_FROSTSTAFF_AVALON',AVALONIAN_HOLY:'MAIN_HOLYSTAFF_AVALON',
+    AVALONIAN_ARCANE:'MAIN_ARCANESTAFF_AVALON',AVALONIAN_NATURE:'MAIN_NATURESTAFF_AVALON',
+    AVALONIAN_BOW:'2H_BOW_AVALON',AVALONIAN_CROSSBOW:'2H_CROSSBOW_AVALON',
+    ROYAL_SWORD:'MAIN_SWORD',ROYAL_FIRE:'MAIN_FIRESTAFF',ROYAL_FROST:'MAIN_FROSTSTAFF',ROYAL_BOW:'2H_BOW',
+    ARTIFACT_SWORD:'MAIN_SWORD_CRYSTAL',ARTIFACT_FIRE:'MAIN_FIRESTAFF_HELL',
+    ARTIFACT_FROST:'MAIN_FROSTSTAFF_HELL',ARTIFACT_HOLY:'MAIN_HOLYSTAFF_HELL',
+    ARTIFACT_ARCANE:'MAIN_ARCANESTAFF_HELL',ARTIFACT_NATURE:'MAIN_NATURESTAFF_HELL',
+    ARTIFACT_BOW:'2H_BOW_HELL',ARTIFACT_CROSSBOW:'2H_CROSSBOWLARGE',
+    ARTIFACT_DAGGER:'MAIN_DAGGER_HELL',ARTIFACT_HAMMER:'2H_HAMMER_HELL',
+  }
+  return tier + (MAP[base] || base)
+}
+
 function ItemIcon({ itemId, size = 32 }: { itemId: string; size?: number }) {
-  const src = `https://render.albiononline.com/v0/item/${itemId}.png`
+  const renderId = getRenderId(itemId)
+  const src = `https://render.albiononline.com/v1/item/${renderId}`
   return (
     <img
       src={src}
@@ -95,7 +125,7 @@ function ItemIcon({ itemId, size = 32 }: { itemId: string; size?: number }) {
       height={size}
       loading="lazy"
       className="inline-block rounded-md bg-black/30 border border-border/30 flex-shrink-0"
-      style={{ imageRendering: 'pixelated', minWidth: size, minHeight: size }}
+      style={{ imageRendering: 'auto', minWidth: size, minHeight: size }}
     />
   )
 }
