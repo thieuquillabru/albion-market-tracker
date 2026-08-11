@@ -1,4 +1,4 @@
 1:"$Sreact.fragment"
 2:I[39756,["/albion-market-tracker/_next/static/chunks/4ed3d6cfc395e8f7.js","/albion-market-tracker/_next/static/chunks/06776b0abb1cb4d5.js","/albion-market-tracker/_next/static/chunks/4392189f08a7af14.js"],"default"]
 3:I[37457,["/albion-market-tracker/_next/static/chunks/4ed3d6cfc395e8f7.js","/albion-market-tracker/_next/static/chunks/06776b0abb1cb4d5.js","/albion-market-tracker/_next/static/chunks/4392189f08a7af14.js"],"default"]
-0:{"buildId":"zFWUc4k3V2zUSSQYM14kI","rsc":["$","$1","c",{"children":[null,["$","$L2",null,{"parallelRouterKey":"children","template":["$","$L3",null,{}]}]]}],"loading":null,"isPartial":false}
+0:{"buildId":"kAId6hUgYSOnFVm1zTgzI","rsc":["$","$1","c",{"children":[null,["$","$L2",null,{"parallelRouterKey":"children","template":["$","$L3",null,{}]}]]}],"loading":null,"isPartial":false}
