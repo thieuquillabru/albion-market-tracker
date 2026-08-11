@@ -632,7 +632,7 @@ function LoadingSkeleton() {
 // --- Main Page ---
 export default function AlbionMarketTracker() {
   const { topSelling, blackMarket, trending, opportunities, gold, totalItemsTracked, dataQuality,
-          lastUpdate, loading, fetching, connected, updateCount, refresh } = useAlbionData(30000)
+          lastUpdate, loading, fetching, connected, updateCount, refresh } = useAlbionData(10000)
 
   // Time ago ticker
   const [, setTick] = useState(0)
@@ -763,7 +763,7 @@ export default function AlbionMarketTracker() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
             <p className="flex items-center gap-1.5">
               <Radio className="h-3 w-3 text-emerald-400" />
-              Actualisation toutes les 30s
+              Actualisation toutes les 10s
             </p>
             <p>
               Albion Market Tracker &mdash; Non affilié à Sandbox Interactive
