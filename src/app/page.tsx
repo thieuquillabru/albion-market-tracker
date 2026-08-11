@@ -25,6 +25,17 @@ function formatSilver(price: number | null): string {
   return price.toString()
 }
 
+function formatDataAge(dateStr: string | null): { text: string; stale: boolean } {
+  if (!dateStr) return { text: '-', stale: true }
+  const minutes = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000)
+  if (minutes < 5) return { text: '< 5min', stale: false }
+  if (minutes < 60) return { text: `${minutes}min`, stale: false }
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return { text: `${hours}h`, stale: true }
+  const days = Math.floor(hours / 24)
+  return { text: `${days}j`, stale: true }
+}
+
 function formatGoldPrice(price: number): string {
   return price.toLocaleString('fr-FR')
 }
@@ -238,11 +249,14 @@ function TopSellingTable({ items }: { items: TopSellingItem[] }) {
             <TableHead className="text-right hidden sm:table-cell">Prix Achat</TableHead>
             <TableHead className="text-right hidden lg:table-cell">Prix Moyen</TableHead>
             <TableHead className="hidden lg:table-cell">Meilleur Marché</TableHead>
+            <TableHead className="text-center hidden xl:table-cell">Dernière Tx</TableHead>
             <TableHead className="text-center">Activité</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item, idx) => (
+          {items.map((item, idx) => {
+            const age = formatDataAge(item.lastSellDate || item.lastBuyDate)
+            return (
             <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
               <TableCell className="max-w-[220px]">
@@ -270,6 +284,11 @@ function TopSellingTable({ items }: { items: TopSellingItem[] }) {
                   <Badge variant="outline" className="text-xs font-normal">{item.bestSellCity}</Badge>
                 ) : '-'}
               </TableCell>
+              <TableCell className="text-center hidden xl:table-cell">
+                <span className={`text-xs font-mono ${age.stale ? 'text-amber-400' : 'text-emerald-400'}`} title={item.lastSellDate ? `Dernière vente: ${new Date(item.lastSellDate).toLocaleString('fr-FR')}` : undefined}>
+                  {age.text}
+                </span>
+              </TableCell>
               <TableCell className="text-center">
                 <div className="flex items-center justify-center gap-1">
                   <Activity className="h-3.5 w-3.5 text-primary" />
@@ -277,10 +296,11 @@ function TopSellingTable({ items }: { items: TopSellingItem[] }) {
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+            )
+          })}
           {items.length === 0 && (
             <TableRow>
-              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                 Aucune donnée disponible. Patientez pendant le chargement...
               </TableCell>
             </TableRow>
@@ -302,12 +322,15 @@ function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
             <TableHead className="text-right">Black Market</TableHead>
             <TableHead className="text-right hidden sm:table-cell">Source</TableHead>
             <TableHead className="hidden md:table-cell">Ville Source</TableHead>
+            <TableHead className="hidden xl:table-cell">Dernière Tx</TableHead>
             <TableHead className="text-right">Profit</TableHead>
             <TableHead className="text-right">Marge</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item, idx) => (
+          {items.map((item, idx) => {
+            const age = formatDataAge(item.bmLastSellDate || item.sourceLastSellDate)
+            return (
             <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
               <TableCell className="max-w-[200px]">
@@ -325,6 +348,11 @@ function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
               <TableCell className="hidden md:table-cell">
                 <Badge variant="outline" className="text-xs font-normal">{item.sourceCity}</Badge>
               </TableCell>
+              <TableCell className="hidden xl:table-cell">
+                <span className={`text-xs font-mono ${age.stale ? 'text-amber-400' : 'text-emerald-400'}`} title={`BM: ${item.bmLastSellDate ? new Date(item.bmLastSellDate).toLocaleString('fr-FR') : '?'} | Source: ${item.sourceLastSellDate ? new Date(item.sourceLastSellDate).toLocaleString('fr-FR') : '?'}`}>
+                  {age.text}
+                </span>
+              </TableCell>
               <TableCell className="text-right font-mono text-emerald-400">
                 +{formatSilver(item.profit)}
               </TableCell>
@@ -337,10 +365,11 @@ function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+            )
+          })}
           {items.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                 Aucune opportunité de profit trouvée sur le Black Market
               </TableCell>
             </TableRow>
@@ -719,15 +748,25 @@ export default function AlbionMarketTracker() {
       </main>
 
       <footer className="border-t border-border/50 bg-background/80 backdrop-blur-xl mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 mb-3">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+              <div className="text-xs text-amber-200/80">
+                <span className="font-semibold text-amber-400">Source des données :</span> Les prix affichés proviennent du{' '}
+                <a href="https://www.albion-online-data.com/" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline font-medium">Albion Online Data Project</a>
+                , un projet <span className="font-semibold">communautaire</span> (bénévoles), et non de Sandbox Interactive.
+                Il n'existe aucune API officielle Albion Online. Les données peuvent avoir un délai et ne sont pas garanties en temps réel.
+              </div>
+            </div>
+          </div>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
-            <p>Données fournies par{' '}
-              <a href="https://www.albion-online-data.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Albion Online Data Project</a>
-              {' '}(source communautaire, pas officielle)
-            </p>
             <p className="flex items-center gap-1.5">
               <Radio className="h-3 w-3 text-emerald-400" />
               Actualisation toutes les 30s
+            </p>
+            <p>
+              Albion Market Tracker &mdash; Non affilié à Sandbox Interactive
             </p>
           </div>
         </div>

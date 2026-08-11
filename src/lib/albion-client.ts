@@ -9,10 +9,12 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 export interface TopSellingItem {
   itemId: string; name: string; avgSellPrice: number | null; bestSellPrice: number | null
   bestSellCity: string | null; bestBuyPrice: number | null; totalVolume: number; cities: string[]
+  lastSellDate: string | null; lastBuyDate: string | null
 }
 export interface BlackMarketItem {
   itemId: string; name: string; blackMarketPrice: number; sourcePrice: number
   sourceCity: string; profit: number; marginPercent: number; updatedAt: string | null
+  bmLastSellDate: string | null; sourceLastSellDate: string | null
 }
 export interface TrendingItem {
   itemId: string; name: string; avgPrice: number; minPrice: number; maxPrice: number
@@ -22,6 +24,7 @@ export interface TrendingItem {
 export interface FlipOpportunity {
   itemId: string; name: string; buyCity: string; buyPrice: number
   sellCity: string; sellPrice: number; profit: number; marginPercent: number
+  buyDate: string | null; sellDate: string | null
 }
 export interface RefineOpportunity {
   itemId: string; rawItemId: string; name: string; rawName: string; tier: number
@@ -316,11 +319,26 @@ function processAllData(allData: MarketData[], gold: GoldData | null) {
   const topSelling: TopSellingItem[] = []
   for (const [itemId, entries] of marketMap) {
     let bestSellPrice = Infinity, bestCity = '', totalSellMin = 0, bestBuyPrice = 0, sc = 0, bc = 0
+    let newestSellDate: string | null = null, newestBuyDate: string | null = null
+    let newestSellDt: Date | null = null, newestBuyDt: Date | null = null
     for (const e of entries) {
-      if (e.sell_price_min && e.sell_price_min > 0) { totalSellMin += e.sell_price_min; sc++; if (e.sell_price_min < bestSellPrice) { bestSellPrice = e.sell_price_min; bestCity = e.city } }
-      if (e.buy_price_max && e.buy_price_max > 0) { bc++; if (e.buy_price_max > bestBuyPrice) bestBuyPrice = e.buy_price_max }
+      if (e.sell_price_min && e.sell_price_min > 0) {
+        totalSellMin += e.sell_price_min; sc++
+        if (e.sell_price_min < bestSellPrice) { bestSellPrice = e.sell_price_min; bestCity = e.city }
+        if (e.sell_price_min_date) {
+          const d = new Date(e.sell_price_min_date)
+          if (!newestSellDt || d > newestSellDt) { newestSellDt = d; newestSellDate = e.sell_price_min_date }
+        }
+      }
+      if (e.buy_price_max && e.buy_price_max > 0) {
+        bc++; if (e.buy_price_max > bestBuyPrice) bestBuyPrice = e.buy_price_max
+        if (e.buy_price_max_date) {
+          const d = new Date(e.buy_price_max_date)
+          if (!newestBuyDt || d > newestBuyDt) { newestBuyDt = d; newestBuyDate = e.buy_price_max_date }
+        }
+      }
     }
-    if (sc > 0 || bc > 0) topSelling.push({ itemId, name: displayName(itemId), avgSellPrice: sc > 0 ? Math.round(totalSellMin / sc) : null, bestSellPrice: bestSellPrice === Infinity ? null : bestSellPrice, bestSellCity: bestCity || null, bestBuyPrice: bestBuyPrice > 0 ? bestBuyPrice : null, totalVolume: sc + bc, cities: entries.map(e => e.city) })
+    if (sc > 0 || bc > 0) topSelling.push({ itemId, name: displayName(itemId), avgSellPrice: sc > 0 ? Math.round(totalSellMin / sc) : null, bestSellPrice: bestSellPrice === Infinity ? null : bestSellPrice, bestSellCity: bestCity || null, bestBuyPrice: bestBuyPrice > 0 ? bestBuyPrice : null, totalVolume: sc + bc, cities: entries.map(e => e.city), lastSellDate: newestSellDate, lastBuyDate: newestBuyDate })
   }
   topSelling.sort((a, b) => b.totalVolume - a.totalVolume)
 
@@ -330,12 +348,12 @@ function processAllData(allData: MarketData[], gold: GoldData | null) {
     const cel = entries.find(e => e.city === BLACK_MARKET_CITY)
     const others = entries.filter(e => e.city !== BLACK_MARKET_CITY)
     if (!cel?.sell_price_min) continue
-    let bsp = Infinity, src = ''
-    for (const e of others) { if (e.sell_price_min && e.sell_price_min < bsp && e.sell_price_min > 0) { bsp = e.sell_price_min; src = e.city } }
+    let bsp = Infinity, src = '', srcDate: string | null = null
+    for (const e of others) { if (e.sell_price_min && e.sell_price_min < bsp && e.sell_price_min > 0) { bsp = e.sell_price_min; src = e.city; srcDate = e.sell_price_min_date } }
     if (bsp === Infinity) continue
     const profit = cel.sell_price_min - bsp
     const margin = bsp > 0 ? Math.round((profit / bsp) * 100) : 0
-    if (profit > 0) blackMarket.push({ itemId, name: displayName(itemId), blackMarketPrice: cel.sell_price_min, sourcePrice: bsp, sourceCity: src, profit, marginPercent: margin, updatedAt: cel.sell_price_min_date })
+    if (profit > 0) blackMarket.push({ itemId, name: displayName(itemId), blackMarketPrice: cel.sell_price_min, sourcePrice: bsp, sourceCity: src, profit, marginPercent: margin, updatedAt: cel.sell_price_min_date, bmLastSellDate: cel.sell_price_min_date, sourceLastSellDate: srcDate })
   }
   blackMarket.sort((a, b) => b.marginPercent - a.marginPercent)
 
@@ -360,16 +378,16 @@ function processAllData(allData: MarketData[], gold: GoldData | null) {
   const flip: FlipOpportunity[] = []
   for (const [itemId, entries] of marketMap) {
     const nonBM = entries.filter(e => e.city !== BLACK_MARKET_CITY)
-    let lowestSell = Infinity, lowestCity = ''
-    let highestBuy = 0, highestCity = ''
+    let lowestSell = Infinity, lowestCity = '', lowestDate: string | null = null
+    let highestBuy = 0, highestCity = '', highestDate: string | null = null
     for (const e of nonBM) {
-      if (e.sell_price_min && e.sell_price_min > 0 && e.sell_price_min < lowestSell) { lowestSell = e.sell_price_min; lowestCity = e.city }
-      if (e.buy_price_max && e.buy_price_max > 0 && e.buy_price_max > highestBuy) { highestBuy = e.buy_price_max; highestCity = e.city }
+      if (e.sell_price_min && e.sell_price_min > 0 && e.sell_price_min < lowestSell) { lowestSell = e.sell_price_min; lowestCity = e.city; lowestDate = e.sell_price_min_date }
+      if (e.buy_price_max && e.buy_price_max > 0 && e.buy_price_max > highestBuy) { highestBuy = e.buy_price_max; highestCity = e.city; highestDate = e.buy_price_max_date }
     }
     if (lowestSell === Infinity || highestBuy <= 0 || lowestCity === highestCity) continue
     const profit = highestBuy - lowestSell
     const margin = lowestSell > 0 ? Math.round((profit / lowestSell) * 100) : 0
-    if (profit > 0) flip.push({ itemId, name: displayName(itemId), buyCity: lowestCity, buyPrice: lowestSell, sellCity: highestCity, sellPrice: highestBuy, profit, marginPercent: margin })
+    if (profit > 0) flip.push({ itemId, name: displayName(itemId), buyCity: lowestCity, buyPrice: lowestSell, sellCity: highestCity, sellPrice: highestBuy, profit, marginPercent: margin, buyDate: lowestDate, sellDate: highestDate })
   }
   flip.sort((a, b) => b.profit - a.profit)
 
