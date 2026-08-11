@@ -248,47 +248,48 @@ async function fetchGold(): Promise<GoldData | null> {
 // ============================================================
 
 function analyzeDataQuality(allData: MarketData[], fetchStart: number): DataQuality {
-  // Find oldest API timestamp from the data (exclude invalid dates like 0001-01-01)
+  // Find newest valid API timestamp (= last recorded market activity)
+  // and oldest valid timestamp (= least traded item)
   const MIN_VALID_DATE = new Date('2020-01-01')
+  let newestTimestamp: string | null = null
+  let newestDate: Date | null = null
   let oldestTimestamp: string | null = null
   let oldestDate: Date | null = null
-  let newestDate: Date | null = null
   let itemsWithData = 0
   const itemsWithPrices = new Set<string>()
 
   for (const entry of allData) {
-    // Track which items have real pricing data
     if ((entry.sell_price_min && entry.sell_price_min > 0) ||
         (entry.buy_price_max && entry.buy_price_max > 0)) {
       itemsWithPrices.add(entry.item_id)
     }
 
-    // Track oldest VALID timestamp from API
     const ts = entry.sell_price_min_date || entry.buy_price_max_date
     if (ts) {
       const d = new Date(ts)
-      // Skip invalid dates (year 0001 = no data)
       if (d >= MIN_VALID_DATE) {
+        if (!newestDate || d > newestDate) {
+          newestDate = d
+          newestTimestamp = ts
+        }
         if (!oldestDate || d < oldestDate) {
           oldestDate = d
           oldestTimestamp = ts
-        }
-        if (!newestDate || d > newestDate) {
-          newestDate = d
         }
       }
     }
   }
 
   const now = new Date()
-  const apiAgeMinutes = oldestDate
-    ? Math.round((now.getTime() - oldestDate.getTime()) / 60000)
+  // Use newest timestamp = "last market activity recorded"
+  const apiAgeMinutes = newestDate
+    ? Math.round((now.getTime() - newestDate.getTime()) / 60000)
     : -1
 
   const fetchDurationMs = Date.now() - fetchStart
 
   return {
-    apiTimestamp: oldestTimestamp,
+    apiTimestamp: newestTimestamp,
     apiAgeMinutes,
     itemsWithData: itemsWithPrices.size,
     totalItems: TRACKED_ITEMS.length,

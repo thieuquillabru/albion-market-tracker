@@ -132,9 +132,7 @@ function DataQualityBadge({ quality }: { quality: DataQuality | null }) {
       )}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 min-w-0">
         <span className={stale ? 'text-amber-300 font-medium' : 'text-emerald-400 font-medium'}>
-          {stale
-            ? `Données API vieilles de ${apiAgeMinutes}min`
-            : `Données API fraîches (${apiAgeMinutes}min)`}
+          Dernière activité API : il y a {apiAgeMinutes}min
         </span>
         <span className="text-muted-foreground">
           <Zap className="h-3 w-3 inline mr-1" />{fetchDurationMs}ms
