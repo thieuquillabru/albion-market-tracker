@@ -1,3 +1,3 @@
 :HL["/albion-market-tracker/_next/static/chunks/34d933785a17edf3.css","style"]
-:HL["/albion-market-tracker/_next/static/chunks/d17583ae6d1004f7.css","style"]
-0:{"buildId":"lPFF14XsCFu3w68T8363H","tree":{"name":"","paramType":null,"paramKey":"","hasRuntimePrefetch":false,"slots":{"children":{"name":"/_not-found","paramType":null,"paramKey":"/_not-found","hasRuntimePrefetch":false,"slots":{"children":{"name":"__PAGE__","paramType":null,"paramKey":"__PAGE__","hasRuntimePrefetch":false,"slots":null,"isRootLayout":false}},"isRootLayout":false}},"isRootLayout":true},"staleTime":300}
+:HL["/albion-market-tracker/_next/static/chunks/1755e4f4d9680fec.css","style"]
+0:{"buildId":"zFWUc4k3V2zUSSQYM14kI","tree":{"name":"","paramType":null,"paramKey":"","hasRuntimePrefetch":false,"slots":{"children":{"name":"/_not-found","paramType":null,"paramKey":"/_not-found","hasRuntimePrefetch":false,"slots":{"children":{"name":"__PAGE__","paramType":null,"paramKey":"__PAGE__","hasRuntimePrefetch":false,"slots":null,"isRootLayout":false}},"isRootLayout":false}},"isRootLayout":true},"staleTime":300}
