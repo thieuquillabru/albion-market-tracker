@@ -662,24 +662,26 @@ export default function AlbionMarketTracker() {
               <TrendingChart items={trending} />
             </TabsContent>
 
-            <TabsContent value="opportunities" className="space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-primary" />Achat / Revente Inter-Villes</h2>
-                <p className="text-sm text-muted-foreground">Acheter au prix le plus bas dans une ville et revendre au prix d'achat le plus élevé dans une autre — classé par profit absolu</p>
-              </div>
-              <ScrollArea className="max-h-[45vh]"><FlipOpportunitiesTable items={opportunities.flip} /></ScrollArea>
+            <TabsContent value="opportunities">
+              <div className="max-h-[75vh] overflow-y-auto space-y-6 pr-1">
+                <div>
+                  <h2 className="text-lg font-semibold flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-primary" />Achat / Revente Inter-Villes</h2>
+                  <p className="text-sm text-muted-foreground">Acheter au prix le plus bas dans une ville et revendre au prix d'achat le plus élevé dans une autre — classé par profit absolu</p>
+                </div>
+                <FlipOpportunitiesTable items={opportunities.flip} />
 
-              <div className="border-t border-border/50 pt-6">
-                <h2 className="text-lg font-semibold flex items-center gap-2"><Factory className="h-5 w-5 text-amber-400" />Meilleures Opportunités de Raffinage</h2>
-                <p className="text-sm text-muted-foreground">Acheter des matières premières, les raffiner, et vendre le produit fini — les ratios T4-T6: 2:1, T7: 3:1, T8: 4:1</p>
-              </div>
-              <ScrollArea className="max-h-[45vh]"><RefineOpportunitiesTable items={opportunities.refine} /></ScrollArea>
+                <div className="border-t border-border pt-6">
+                  <h2 className="text-lg font-semibold flex items-center gap-2"><Factory className="h-5 w-5 text-amber-400" />Meilleures Opportunités de Raffinage</h2>
+                  <p className="text-sm text-muted-foreground">Acheter des matières premières, les raffiner, et vendre le produit fini — les ratios T4-T6: 2:1, T7: 3:1, T8: 4:1</p>
+                </div>
+                <RefineOpportunitiesTable items={opportunities.refine} />
 
-              <div className="border-t border-border/50 pt-6">
-                <h2 className="text-lg font-semibold flex items-center gap-2"><Truck className="h-5 w-5 text-sky-400" />Meilleures Routes de Transport</h2>
-                <p className="text-sm text-muted-foreground">Ressources et matériaux avec le plus gros écart de prix entre deux villes — idéal pour le transport de marchandises</p>
+                <div className="border-t border-border pt-6">
+                  <h2 className="text-lg font-semibold flex items-center gap-2"><Truck className="h-5 w-5 text-sky-400" />Meilleures Routes de Transport</h2>
+                  <p className="text-sm text-muted-foreground">Ressources et matériaux avec le plus gros écart de prix entre deux villes — idéal pour le transport de marchandises</p>
+                </div>
+                <TransportOpportunitiesTable items={opportunities.transport} />
               </div>
-              <ScrollArea className="max-h-[45vh]"><TransportOpportunitiesTable items={opportunities.transport} /></ScrollArea>
             </TabsContent>
           </Tabs>
         )}
