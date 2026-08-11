@@ -248,9 +248,11 @@ async function fetchGold(): Promise<GoldData | null> {
 // ============================================================
 
 function analyzeDataQuality(allData: MarketData[], fetchStart: number): DataQuality {
-  // Find oldest API timestamp from the data
+  // Find oldest API timestamp from the data (exclude invalid dates like 0001-01-01)
+  const MIN_VALID_DATE = new Date('2020-01-01')
   let oldestTimestamp: string | null = null
   let oldestDate: Date | null = null
+  let newestDate: Date | null = null
   let itemsWithData = 0
   const itemsWithPrices = new Set<string>()
 
@@ -261,13 +263,19 @@ function analyzeDataQuality(allData: MarketData[], fetchStart: number): DataQual
       itemsWithPrices.add(entry.item_id)
     }
 
-    // Track oldest timestamp from API
+    // Track oldest VALID timestamp from API
     const ts = entry.sell_price_min_date || entry.buy_price_max_date
     if (ts) {
       const d = new Date(ts)
-      if (!oldestDate || d < oldestDate) {
-        oldestDate = d
-        oldestTimestamp = ts
+      // Skip invalid dates (year 0001 = no data)
+      if (d >= MIN_VALID_DATE) {
+        if (!oldestDate || d < oldestDate) {
+          oldestDate = d
+          oldestTimestamp = ts
+        }
+        if (!newestDate || d > newestDate) {
+          newestDate = d
+        }
       }
     }
   }
