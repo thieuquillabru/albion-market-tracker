@@ -232,9 +232,12 @@ function processAllData(allData: MarketData[], gold: GoldData | null) {
     const active = entries.filter(e => e.sell_price_min && e.sell_price_min > 0)
     if (active.length < 2) continue
     const avg = Math.round(active.reduce((s, e) => s + (e.sell_price_min || 0), 0) / active.length)
-    const min = Math.min(...active.map(e => e.sell_price_min || Infinity))
-    const max = Math.max(...active.map(e => e.sell_price_max || 0))
-    trending.push({ itemId, name: displayName(itemId), avgPrice: avg, minPrice: min === Infinity ? 0 : min, maxPrice: max, cityCount: active.length, spread: max - (min === Infinity ? 0 : min), cities: active.map(e => ({ city: e.city, sellPrice: e.sell_price_min, buyPrice: e.buy_price_max })) })
+    // Use sell_price_min for both min and max (sell_price_max is almost always null in the API)
+    const sellPrices = active.map(e => e.sell_price_min || 0)
+    const min = Math.min(...sellPrices)
+    const max = Math.max(...sellPrices)
+    const spread = max - min
+    trending.push({ itemId, name: displayName(itemId), avgPrice: avg, minPrice: min, maxPrice: max, cityCount: active.length, spread, cities: active.map(e => ({ city: e.city, sellPrice: e.sell_price_min, buyPrice: e.buy_price_max })) })
   }
   trending.sort((a, b) => b.cityCount - a.cityCount || b.spread - a.spread)
 

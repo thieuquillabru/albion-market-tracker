@@ -222,7 +222,7 @@ function TopSellingTable({ items }: { items: TopSellingItem[] }) {
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
-                  <ItemIcon itemId={item.itemId} size={40} />
+                  <ItemIcon itemId={item.itemId} size={36} />
                   <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
                 </div>
               </TableCell>
@@ -287,7 +287,7 @@ function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
-                  <ItemIcon itemId={item.itemId} size={40} />
+                  <ItemIcon itemId={item.itemId} size={36} />
                   <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
                 </div>
               </TableCell>
@@ -328,7 +328,7 @@ function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
 
 function TrendingChart({ items }: { items: TrendingItem[] }) {
   const chartData = items.slice(0, 12).map(item => ({
-    name: item.name.length > 22 ? item.name.substring(0, 22) + '...' : item.name,
+    name: item.name.length > 15 ? item.name.substring(0, 15) + '...' : item.name,
     fullName: item.name,
     minPrice: item.minPrice,
     maxPrice: item.maxPrice,
@@ -347,11 +347,11 @@ function TrendingChart({ items }: { items: TrendingItem[] }) {
           <CardDescription>Les items avec le plus grand écart entre la ville la moins chère et la plus chère</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-80">
+          <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 60 }}>
+              <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 70 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0.02 260)" />
-                <XAxis dataKey="name" tick={{ fill: 'oklch(0.65 0.02 260)', fontSize: 11 }} angle={-35} textAnchor="end" height={80} />
+                <XAxis dataKey="name" tick={{ fill: 'oklch(0.65 0.02 260)', fontSize: 10 }} angle={-40} textAnchor="end" height={75} interval={0} />
                 <YAxis tick={{ fill: 'oklch(0.65 0.02 260)', fontSize: 11 }} tickFormatter={(v: number) => formatSilver(v)} />
                 <RechartsTooltip
                   contentStyle={{ backgroundColor: 'oklch(0.17 0.012 260)', border: '1px solid oklch(0.3 0.02 260)', borderRadius: '8px', color: 'oklch(0.93 0.01 80)' }}
@@ -377,12 +377,12 @@ function TrendingChart({ items }: { items: TrendingItem[] }) {
           <CardDescription>Items les plus recherchés avec leurs prix par ville</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+          <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-2">
             {items.map((item) => (
               <div key={item.itemId} className="p-3 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <ItemIcon itemId={item.itemId} size={40} />
+                    <ItemIcon itemId={item.itemId} size={36} />
                     <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
                     <Badge variant={getTierBadgeVariant(item.name)} className="text-xs">{getTierLabel(item.name)}</Badge>
                     <Badge variant="outline" className="text-xs">{item.cityCount} villes</Badge>
@@ -478,7 +478,7 @@ function RefineOpportunitiesTable({ items }: { items: RefineOpportunity[] }) {
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
-                  <ItemIcon itemId={item.itemId} size={40} />
+                  <ItemIcon itemId={item.itemId} size={36} />
                   <div>
                     <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
                     <span className="text-xs text-muted-foreground ml-1">T{item.tier}</span>
@@ -647,7 +647,7 @@ export default function AlbionMarketTracker() {
                 <h2 className="text-lg font-semibold">Items les Plus Recherchés &amp; Vendus</h2>
                 <p className="text-sm text-muted-foreground">Classés par volume d'activité sur tous les marchés royaux</p>
               </div>
-              <ScrollArea className="max-h-[600px]"><TopSellingTable items={topSelling} /></ScrollArea>
+              <ScrollArea className="max-h-[55vh]"><TopSellingTable items={topSelling} /></ScrollArea>
             </TabsContent>
 
             <TabsContent value="blackmarket" className="space-y-4">
@@ -655,7 +655,7 @@ export default function AlbionMarketTracker() {
                 <h2 className="text-lg font-semibold flex items-center gap-2"><Skull className="h-5 w-5 text-red-400" />Opportunités Black Market</h2>
                 <p className="text-sm text-muted-foreground">Acheter sur les marchés royaux et revendre au Black Market de Caerleon</p>
               </div>
-              <ScrollArea className="max-h-[600px]"><BlackMarketTable items={blackMarket} /></ScrollArea>
+              <ScrollArea className="max-h-[55vh]"><BlackMarketTable items={blackMarket} /></ScrollArea>
             </TabsContent>
 
             <TabsContent value="trending" className="space-y-4">
@@ -671,19 +671,19 @@ export default function AlbionMarketTracker() {
                 <h2 className="text-lg font-semibold flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-primary" />Achat / Revente Inter-Villes</h2>
                 <p className="text-sm text-muted-foreground">Acheter au prix le plus bas dans une ville et revendre au prix d'achat le plus élevé dans une autre — classé par profit absolu</p>
               </div>
-              <ScrollArea className="max-h-[450px]"><FlipOpportunitiesTable items={opportunities.flip} /></ScrollArea>
+              <ScrollArea className="max-h-[45vh]"><FlipOpportunitiesTable items={opportunities.flip} /></ScrollArea>
 
-              <div className="pt-2">
+              <div className="border-t border-border/50 pt-6">
                 <h2 className="text-lg font-semibold flex items-center gap-2"><Factory className="h-5 w-5 text-amber-400" />Meilleures Opportunités de Raffinage</h2>
                 <p className="text-sm text-muted-foreground">Acheter des matières premières, les raffiner, et vendre le produit fini — les ratios T4-T6: 2:1, T7: 3:1, T8: 4:1</p>
               </div>
-              <ScrollArea className="max-h-[450px]"><RefineOpportunitiesTable items={opportunities.refine} /></ScrollArea>
+              <ScrollArea className="max-h-[45vh]"><RefineOpportunitiesTable items={opportunities.refine} /></ScrollArea>
 
-              <div className="pt-2">
+              <div className="border-t border-border/50 pt-6">
                 <h2 className="text-lg font-semibold flex items-center gap-2"><Truck className="h-5 w-5 text-sky-400" />Meilleures Routes de Transport</h2>
                 <p className="text-sm text-muted-foreground">Ressources et matériaux avec le plus gros écart de prix entre deux villes — idéal pour le transport de marchandises</p>
               </div>
-              <ScrollArea className="max-h-[450px]"><TransportOpportunitiesTable items={opportunities.transport} /></ScrollArea>
+              <ScrollArea className="max-h-[45vh]"><TransportOpportunitiesTable items={opportunities.transport} /></ScrollArea>
             </TabsContent>
           </Tabs>
         )}

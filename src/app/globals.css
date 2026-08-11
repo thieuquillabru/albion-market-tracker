@@ -128,6 +128,11 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Better table row spacing */
+  tr[data-state] td {
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+  }
 }
 
 /* Custom scrollbar for the dark theme */
