@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAlbionData } from '@/lib/albion-client'
-import type { TopSellingItem, BlackMarketItem, TrendingItem, FlipOpportunity, RefineOpportunity, TransportOpportunity, GoldData } from '@/lib/albion-client'
+import type { TopSellingItem, BlackMarketItem, TrendingItem, FlipOpportunity, RefineOpportunity, TransportOpportunity, GoldData, DataQuality } from '@/lib/albion-client'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -13,6 +13,7 @@ import {
 import {
   TrendingUp, RefreshCw, Coins, Skull, BarChart3, Clock, ArrowUpRight,
   ArrowRightLeft, Activity, Search, ShoppingBag, Radio, Flame, Truck, Factory,
+  AlertTriangle, ShieldCheck, Zap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -117,6 +118,37 @@ function ItemIcon({ itemId, size = 32 }: { itemId: string; size?: number }) {
 }
 
 // --- Components ---
+
+function DataQualityBadge({ quality }: { quality: DataQuality | null }) {
+  if (!quality) return null
+  const { apiAgeMinutes, coveragePercent, fetchDurationMs, stale, itemsWithData, totalItems, batchSize } = quality
+
+  return (
+    <div className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs border ${stale ? 'border-amber-500/40 bg-amber-500/10' : 'border-emerald-500/20 bg-emerald-500/5'}`}>
+      {stale ? (
+        <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0" />
+      ) : (
+        <ShieldCheck className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+      )}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 min-w-0">
+        <span className={stale ? 'text-amber-300 font-medium' : 'text-emerald-400 font-medium'}>
+          {stale
+            ? `Données API vieilles de ${apiAgeMinutes}min`
+            : `Données API fraîches (${apiAgeMinutes}min)`}
+        </span>
+        <span className="text-muted-foreground">
+          <Zap className="h-3 w-3 inline mr-1" />{fetchDurationMs}ms
+        </span>
+        <span className="text-muted-foreground">
+          {itemsWithData}/{totalItems} items ({coveragePercent}%)
+        </span>
+        <span className="text-muted-foreground hidden sm:inline">
+          {batchSize} entrées
+        </span>
+      </div>
+    </div>
+  )
+}
 
 function LiveIndicator({ connected, lastUpdate, updateCount, fetching }: { connected: boolean; lastUpdate: number; updateCount: number; fetching: boolean }) {
   return (
@@ -572,7 +604,7 @@ function LoadingSkeleton() {
 
 // --- Main Page ---
 export default function AlbionMarketTracker() {
-  const { topSelling, blackMarket, trending, opportunities, gold, totalItemsTracked,
+  const { topSelling, blackMarket, trending, opportunities, gold, totalItemsTracked, dataQuality,
           lastUpdate, loading, fetching, connected, updateCount, refresh } = useAlbionData(30000)
 
   // Time ago ticker
@@ -618,6 +650,8 @@ export default function AlbionMarketTracker() {
       {/* Main Content */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 space-y-6">
         <GoldTicker gold={gold} />
+
+        {!loading && <DataQualityBadge quality={dataQuality} />}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard icon={BarChart3} label="Items Suivis" value={totalItemsTracked} subtext="sur tous les marchés" color="bg-primary/20 text-primary" />
@@ -691,10 +725,11 @@ export default function AlbionMarketTracker() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
             <p>Données fournies par{' '}
               <a href="https://www.albion-online-data.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Albion Online Data Project</a>
+              {' '}(source communautaire, pas officielle)
             </p>
             <p className="flex items-center gap-1.5">
               <Radio className="h-3 w-3 text-emerald-400" />
-              Données mises à jour automatiquement toutes les 30s
+              Actualisation toutes les 30s
             </p>
           </div>
         </div>

@@ -34,6 +34,16 @@ export interface TransportOpportunity {
   toCity: string; sellPrice: number; profit: number; marginPercent: number
 }
 export interface GoldData { timestamp: number; price: number }
+export interface DataQuality {
+  apiTimestamp: string | null     // Oldest data timestamp from API
+  apiAgeMinutes: number          // How old the oldest data point is
+  itemsWithData: number           // Items that returned actual prices
+  totalItems: number              // Total items requested
+  coveragePercent: number         // itemsWithData / totalItems
+  fetchDurationMs: number         // How long the fetch took
+  batchSize: number               // Raw data points received
+  stale: boolean                  // true if data > 15 min old
+}
 
 interface MarketData {
   item_id: string; city: string; quality: number
@@ -51,9 +61,11 @@ const ALBION_API = 'https://www.albion-online-data.com/api/v2/stats'
 const CITIES = ['Bridgewatch', 'Caerleon', 'Fort Sterling', 'Lymhurst', 'Martlock', 'Thetford']
 const BLACK_MARKET_CITY = 'Caerleon'
 const NON_BM_CITIES = CITIES.filter(c => c !== BLACK_MARKET_CITY)
+const MAX_RETRY = 3
+const RETRY_BASE_DELAY = 2000
+const STALE_THRESHOLD_MINUTES = 15
 
 // Only items confirmed to have real market data via Albion Online Data Project API.
-// Weapons, capes (named), food, mounts, journals, books, runic mats, farm items all return 0.
 const TRACKED_ITEMS = [
   // --- Resources T4-T8 ---
   'T4_ORE','T5_ORE','T6_ORE','T7_ORE','T8_ORE',
@@ -110,21 +122,13 @@ const CITY_REFINE_BONUS: Record<string, string> = {
 // ============================================================
 
 const FR_NAMES: Record<string, string> = {
-  // Resources
   'ORE': 'Minerai', 'WOOD': 'Bois', 'FIBER': 'Fibre', 'HIDE': 'Peau', 'ROCK': 'Pierre',
-  // Materials
   'METALBAR': 'Lingot de métal', 'PLANKS': 'Planche', 'CLOTH': 'Tissu', 'LEATHER': 'Cuir', 'STONEBLOCK': 'Bloc de pierre',
-  // Equipment
   'BAG': 'Sac', 'CAPE': 'Cape',
-  // Armor Cloth
   'ARMOR_CLOTH_SET1': 'Armure en tissu', 'SHOES_CLOTH_SET1': 'Chaussures en tissu', 'HEAD_CLOTH_SET1': 'Coiffe en tissu',
-  // Armor Leather
   'ARMOR_LEATHER_SET1': 'Armure en cuir', 'SHOES_LEATHER_SET1': 'Chaussures en cuir', 'HEAD_LEATHER_SET1': 'Coiffe en cuir',
-  // Armor Plate
   'ARMOR_PLATE_SET1': 'Armure en plaques', 'SHOES_PLATE_SET1': 'Chaussures en plaques', 'HEAD_PLATE_SET1': 'Coiffe en plaques',
-  // Runes
   'RUNE': 'Rune', 'SOUL': 'Âme', 'RELIC': 'Relique',
-  // Potions
   'POTION_HEAL': 'Potion de soins', 'POTION_ENERGY': "Potion d'énergie",
 }
 
@@ -139,6 +143,59 @@ function displayName(itemId: string): string {
   const { tier, baseKey } = parseItemId(itemId)
   const fr = FR_NAMES[baseKey] || baseKey.charAt(0).toUpperCase() + baseKey.slice(1).toLowerCase().replace(/_/g, ' ')
   return tier ? `${fr} ${tier}` : fr
+}
+
+// ============================================================
+// Retry with exponential backoff + 429 handling
+// ============================================================
+
+async function fetchWithRetry(url: string, timeoutMs: number): Promise<Response> {
+  for (let attempt = 0; attempt <= MAX_RETRY; attempt++) {
+    try {
+      const cacheBuster = `_t=${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+      const sep = url.includes('?') ? '&' : '?'
+      const res = await fetch(`${url}${sep}${cacheBuster}`, {
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(timeoutMs),
+      })
+
+      if (res.status === 429) {
+        // Rate limited — wait and retry
+        const retryAfter = res.headers.get('Retry-After')
+        const delay = retryAfter
+          ? parseInt(retryAfter) * 1000
+          : RETRY_BASE_DELAY * Math.pow(2, attempt) + Math.random() * 1000
+        console.warn(`[Albion Client] 429 rate limited, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${MAX_RETRY})`)
+        if (attempt < MAX_RETRY) {
+          await new Promise(r => setTimeout(r, delay))
+          continue
+        }
+      }
+
+      if (res.status >= 500) {
+        console.warn(`[Albion Client] Server error ${res.status}, retrying (attempt ${attempt + 1}/${MAX_RETRY})`)
+        if (attempt < MAX_RETRY) {
+          await new Promise(r => setTimeout(r, RETRY_BASE_DELAY * Math.pow(2, attempt)))
+          continue
+        }
+      }
+
+      return res
+    } catch (err) {
+      if (attempt < MAX_RETRY) {
+        console.warn(`[Albion Client] Fetch error, retrying (attempt ${attempt + 1}/${MAX_RETRY}):`, err)
+        await new Promise(r => setTimeout(r, RETRY_BASE_DELAY * Math.pow(2, attempt)))
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error('Max retries exceeded')
 }
 
 // ============================================================
@@ -159,14 +216,16 @@ async function fetchAllMarketData(): Promise<MarketData[]> {
     const results = await Promise.allSettled(
       chunk.map(async (batch) => {
         const url = `${ALBION_API}/prices/${batch.join(',')}?locations=${CITIES.join(',')}`
-        const res = await fetch(url, {
-          headers: { 'Accept': 'application/json' },
-          signal: AbortSignal.timeout(15000),
-        })
+        const res = await fetchWithRetry(url, 20000)
         if (!res.ok) return []
         const data = await res.json() as MarketData[]
-        // API returns all quality levels — filter to quality 1 only
-        return data.filter(d => d.quality === 1)
+        // Filter to quality 1 only, and validate entries
+        return data.filter(d =>
+          d.quality === 1 &&
+          d.item_id &&
+          d.city &&
+          CITIES.includes(d.city)
+        )
       })
     )
     for (const r of results) {
@@ -178,13 +237,58 @@ async function fetchAllMarketData(): Promise<MarketData[]> {
 
 async function fetchGold(): Promise<GoldData | null> {
   try {
-    const res = await fetch(`${ALBION_API}/gold?count=1`, {
-      headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(10000),
-    })
+    const res = await fetchWithRetry(`${ALBION_API}/gold?count=1`, 15000)
     if (res.ok) { const gd = await res.json(); return gd?.length ? gd[0] : null }
   } catch { return null }
   return null
+}
+
+// ============================================================
+// Data Quality Analysis
+// ============================================================
+
+function analyzeDataQuality(allData: MarketData[], fetchStart: number): DataQuality {
+  // Find oldest API timestamp from the data
+  let oldestTimestamp: string | null = null
+  let oldestDate: Date | null = null
+  let itemsWithData = 0
+  const itemsWithPrices = new Set<string>()
+
+  for (const entry of allData) {
+    // Track which items have real pricing data
+    if ((entry.sell_price_min && entry.sell_price_min > 0) ||
+        (entry.buy_price_max && entry.buy_price_max > 0)) {
+      itemsWithPrices.add(entry.item_id)
+    }
+
+    // Track oldest timestamp from API
+    const ts = entry.sell_price_min_date || entry.buy_price_max_date
+    if (ts) {
+      const d = new Date(ts)
+      if (!oldestDate || d < oldestDate) {
+        oldestDate = d
+        oldestTimestamp = ts
+      }
+    }
+  }
+
+  const now = new Date()
+  const apiAgeMinutes = oldestDate
+    ? Math.round((now.getTime() - oldestDate.getTime()) / 60000)
+    : -1
+
+  const fetchDurationMs = Date.now() - fetchStart
+
+  return {
+    apiTimestamp: oldestTimestamp,
+    apiAgeMinutes,
+    itemsWithData: itemsWithPrices.size,
+    totalItems: TRACKED_ITEMS.length,
+    coveragePercent: Math.round((itemsWithPrices.size / TRACKED_ITEMS.length) * 100),
+    fetchDurationMs,
+    batchSize: allData.length,
+    stale: apiAgeMinutes > STALE_THRESHOLD_MINUTES,
+  }
 }
 
 // ============================================================
@@ -226,14 +330,13 @@ function processAllData(allData: MarketData[], gold: GoldData | null) {
   }
   blackMarket.sort((a, b) => b.marginPercent - a.marginPercent)
 
-  // Trending (exclude Caerleon BM city — covered in Black Market tab)
+  // Trending (exclude Caerleon BM city)
   const trending: TrendingItem[] = []
   for (const [itemId, entries] of marketMap) {
     const nonBM = entries.filter(e => e.city !== BLACK_MARKET_CITY)
     const active = nonBM.filter(e => e.sell_price_min && e.sell_price_min > 0)
     if (active.length < 2) continue
     const avg = Math.round(active.reduce((s, e) => s + (e.sell_price_min || 0), 0) / active.length)
-    // Use sell_price_min for both min and max (sell_price_max is almost always null in the API)
     const sellPrices = active.map(e => e.sell_price_min || 0)
     const min = Math.min(...sellPrices)
     const max = Math.max(...sellPrices)
@@ -336,6 +439,7 @@ export interface AlbionDataResult {
   opportunities: { flip: FlipOpportunity[]; refine: RefineOpportunity[]; transport: TransportOpportunity[] }
   gold: GoldData | null
   totalItemsTracked: number
+  dataQuality: DataQuality | null
   lastUpdate: number
   loading: boolean
   fetching: boolean
@@ -351,6 +455,7 @@ export function useAlbionData(pollInterval = 30000): AlbionDataResult {
   const [opportunities, setOpportunities] = useState<AlbionDataResult['opportunities']>({ flip: [], refine: [], transport: [] })
   const [gold, setGold] = useState<GoldData | null>(null)
   const [totalItemsTracked, setTotalItemsTracked] = useState(0)
+  const [dataQuality, setDataQuality] = useState<DataQuality | null>(null)
   const [lastUpdate, setLastUpdate] = useState(0)
   const [loading, setLoading] = useState(true)
   const [fetching, setFetching] = useState(false)
@@ -363,8 +468,10 @@ export function useAlbionData(pollInterval = 30000): AlbionDataResult {
     fetchingRef.current = true
     if (!isInitial) setFetching(true)
 
+    const fetchStart = Date.now()
     try {
       const [allData, goldData] = await Promise.all([fetchAllMarketData(), fetchGold()])
+      const quality = analyzeDataQuality(allData, fetchStart)
       const result = processAllData(allData, goldData)
 
       setTopSelling(result.topSelling)
@@ -373,11 +480,12 @@ export function useAlbionData(pollInterval = 30000): AlbionDataResult {
       setOpportunities(result.opportunities)
       setGold(result.gold)
       setTotalItemsTracked(result.totalItemsTracked)
+      setDataQuality(quality)
       setLastUpdate(Date.now())
       setConnected(true)
       if (!isInitial) setUpdateCount(c => c + 1)
     } catch (err) {
-      console.error('[Albion Client] Fetch error:', err)
+      console.error('[Albion Client] Fetch error after retries:', err)
       setConnected(false)
     } finally {
       setLoading(false)
@@ -394,5 +502,5 @@ export function useAlbionData(pollInterval = 30000): AlbionDataResult {
 
   const refresh = useCallback(() => { doFetch(false) }, [doFetch])
 
-  return { topSelling, blackMarket, trending, opportunities, gold, totalItemsTracked, lastUpdate, loading, fetching, connected, updateCount, refresh }
+  return { topSelling, blackMarket, trending, opportunities, gold, totalItemsTracked, dataQuality, lastUpdate, loading, fetching, connected, updateCount, refresh }
 }
