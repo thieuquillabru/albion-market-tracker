@@ -18,7 +18,7 @@ import {
 import { Button } from '@/components/ui/button'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip as RechartsTooltip, ResponsiveContainer,
+  Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
 } from 'recharts'
 
 // --- Utility functions ---
@@ -327,14 +327,12 @@ function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
 }
 
 function TrendingChart({ items }: { items: TrendingItem[] }) {
-  const chartData = items.slice(0, 12).map(item => ({
-    name: item.name.length > 15 ? item.name.substring(0, 15) + '...' : item.name,
-    fullName: item.name,
+  // Horizontal bar chart: best for long French item names, sorted by spread desc
+  const chartData = items.slice(0, 10).map(item => ({
+    name: item.name,
     minPrice: item.minPrice,
     maxPrice: item.maxPrice,
-    avgPrice: item.avgPrice,
     spread: item.spread,
-    cityCount: item.cityCount,
   }))
   return (
     <div className="space-y-6">
@@ -342,26 +340,22 @@ function TrendingChart({ items }: { items: TrendingItem[] }) {
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
-            Écart de Prix par Item (Min vs Max)
+            Meilleurs Écarts de Prix Inter-Villes
           </CardTitle>
-          <CardDescription>Les items avec le plus grand écart entre la ville la moins chère et la plus chère</CardDescription>
+          <CardDescription>Items avec le plus grand écart de prix de vente entre villes (hors Black Market)</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-72">
+          <div style={{ height: Math.max(280, chartData.length * 38) }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 70 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0.02 260)" />
-                <XAxis dataKey="name" tick={{ fill: 'oklch(0.65 0.02 260)', fontSize: 10 }} angle={-40} textAnchor="end" height={75} interval={0} />
-                <YAxis tick={{ fill: 'oklch(0.65 0.02 260)', fontSize: 11 }} tickFormatter={(v: number) => formatSilver(v)} />
+              <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0.02 260)" horizontal={false} />
+                <XAxis type="number" tick={{ fill: 'oklch(0.65 0.02 260)', fontSize: 11 }} tickFormatter={(v: number) => formatSilver(v)} />
+                <YAxis type="category" dataKey="name" tick={{ fill: 'oklch(0.8 0.02 260)', fontSize: 11 }} width={115} />
                 <RechartsTooltip
                   contentStyle={{ backgroundColor: 'oklch(0.17 0.012 260)', border: '1px solid oklch(0.3 0.02 260)', borderRadius: '8px', color: 'oklch(0.93 0.01 80)' }}
-                  formatter={(value: number, name: string) => [formatSilver(value), name === 'minPrice' ? 'Prix Min' : name === 'maxPrice' ? 'Prix Max' : name === 'avgPrice' ? 'Prix Moyen' : name]}
-                  labelFormatter={(label: string, payload?: Array<{ payload?: { fullName?: string } }>) => {
-                    if (payload && payload.length > 0 && payload[0].payload?.fullName) return payload[0].payload.fullName
-                    return label
-                  }}
+                  formatter={(value: number, name: string) => [formatSilver(value), name === 'minPrice' ? 'Prix Min' : name === 'maxPrice' ? 'Prix Max' : 'Écart']}
                 />
-                <Bar dataKey="minPrice" fill="oklch(0.65 0.2 155)" radius={[2, 0, 0, 2]} name="Prix Min" />
+                <Bar dataKey="minPrice" fill="oklch(0.65 0.2 155)" radius={[0, 2, 2, 0]} name="Prix Min" />
                 <Bar dataKey="maxPrice" fill="oklch(0.65 0.2 25)" radius={[0, 2, 2, 0]} name="Prix Max" />
               </BarChart>
             </ResponsiveContainer>
@@ -391,6 +385,7 @@ function TrendingChart({ items }: { items: TrendingItem[] }) {
                     <span className="text-muted-foreground">Moy: <span className="font-mono text-foreground">{formatSilver(item.avgPrice)}</span></span>
                     <span className="text-emerald-400">Min: <span className="font-mono">{formatSilver(item.minPrice)}</span></span>
                     <span className="text-red-400">Max: <span className="font-mono">{formatSilver(item.maxPrice)}</span></span>
+                    <span className="text-sky-400">Écart: <span className="font-mono">{formatSilver(item.spread)}</span></span>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">

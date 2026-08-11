@@ -226,10 +226,11 @@ function processAllData(allData: MarketData[], gold: GoldData | null) {
   }
   blackMarket.sort((a, b) => b.marginPercent - a.marginPercent)
 
-  // Trending
+  // Trending (exclude Caerleon BM city — covered in Black Market tab)
   const trending: TrendingItem[] = []
   for (const [itemId, entries] of marketMap) {
-    const active = entries.filter(e => e.sell_price_min && e.sell_price_min > 0)
+    const nonBM = entries.filter(e => e.city !== BLACK_MARKET_CITY)
+    const active = nonBM.filter(e => e.sell_price_min && e.sell_price_min > 0)
     if (active.length < 2) continue
     const avg = Math.round(active.reduce((s, e) => s + (e.sell_price_min || 0), 0) / active.length)
     // Use sell_price_min for both min and max (sell_price_max is almost always null in the API)
@@ -239,7 +240,7 @@ function processAllData(allData: MarketData[], gold: GoldData | null) {
     const spread = max - min
     trending.push({ itemId, name: displayName(itemId), avgPrice: avg, minPrice: min, maxPrice: max, cityCount: active.length, spread, cities: active.map(e => ({ city: e.city, sellPrice: e.sell_price_min, buyPrice: e.buy_price_max })) })
   }
-  trending.sort((a, b) => b.cityCount - a.cityCount || b.spread - a.spread)
+  trending.sort((a, b) => b.spread - a.spread || b.cityCount - a.cityCount)
 
   // === Opportunities ===
 
