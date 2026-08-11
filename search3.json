@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://www.reddit.com/r/albiononline/comments/1mue5sz/trying_the_albion_online_data_project_api",
+    "name": "Trying the Albion Online Data Project API : r/albiononline",
+    "snippet": "the alternative is manually comparing the values which is not faster and you could anyway have the client active while you are doing it. Read more",
+    "host_name": "www.reddit.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://albionfreemarket.com/articles/view/the-albion-online-data-project-client-tutorial",
+    "name": "The Albion Online Data Project Client Tutorial",
+    "snippet": "Jul 19, 2024 — If your prices are not updating with the client, it's probable that you have encrypted data , Alternatively, you can use the AFM Data Client. It ...",
+    "host_name": "albionfreemarket.com",
+    "rank": 1,
+    "date": "Jul 19, 2024",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.albion-online-data.com",
+    "name": "The Albion Online Data Project",
+    "snippet": "Use our REST API to fetch current prices, historical stats, and more for any item and location. —no API knowledge required.",
+    "host_name": "www.albion-online-data.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://forum.albiononline.com/index.php/Thread/197141-Request-for-Official-Real-Time-Market-Data-API-for-Albion-Online",
+    "name": "Request for Official Real-Time Market Data API for Albion",
+    "snippet": "May 22, 2024 — However, using this API sometimes has its limitations due to the update frequency , which does not always allow for real-time data retrieval. Read more",
+    "host_name": "forum.albiononline.com",
+    "rank": 3,
+    "date": "May 22, 2024",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/broderickhyman/albiondata-client",
+    "name": "Distributed client for the Albion Online Data project. · GitHub",
+    "snippet": "Jan 2, 2023 — This client monitors local network traffic, identifies UDP packets that contain relevant data for Albion Online , and ships the information off ...",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "Jan 2, 2023",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.albion-online-data.com/client-faq",
+    "name": "Client FAQ",
+    "snippet": "This means your Albion Online Data client is taking too long to send data to our servers. This is slowed down on purpose because we ask your computer to do some ... Read more",
+    "host_name": "www.albion-online-data.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  }
+]
