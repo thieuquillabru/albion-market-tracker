@@ -16,10 +16,6 @@ import {
   ArrowRightLeft, Activity, Search, ShoppingBag, Radio, Flame, Truck, Factory,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
-} from 'recharts'
 
 // --- Utility functions ---
 function formatSilver(price: number | null): string {
@@ -327,13 +323,8 @@ function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
 }
 
 function TrendingChart({ items }: { items: TrendingItem[] }) {
-  // Horizontal bar chart: best for long French item names, sorted by spread desc
-  const chartData = items.slice(0, 10).map(item => ({
-    name: item.name,
-    minPrice: item.minPrice,
-    maxPrice: item.maxPrice,
-    spread: item.spread,
-  }))
+  const topItems = items.slice(0, 10)
+  const maxPrice = Math.max(...topItems.map(i => i.maxPrice), 1)
   return (
     <div className="space-y-6">
       <Card>
@@ -345,20 +336,30 @@ function TrendingChart({ items }: { items: TrendingItem[] }) {
           <CardDescription>Items avec le plus grand écart de prix de vente entre villes (hors Black Market)</CardDescription>
         </CardHeader>
         <CardContent>
-          <div style={{ height: Math.max(280, chartData.length * 38) }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0.02 260)" horizontal={false} />
-                <XAxis type="number" tick={{ fill: 'oklch(0.65 0.02 260)', fontSize: 11 }} tickFormatter={(v: number) => formatSilver(v)} />
-                <YAxis type="category" dataKey="name" tick={{ fill: 'oklch(0.8 0.02 260)', fontSize: 11 }} width={115} />
-                <RechartsTooltip
-                  contentStyle={{ backgroundColor: 'oklch(0.17 0.012 260)', border: '1px solid oklch(0.3 0.02 260)', borderRadius: '8px', color: 'oklch(0.93 0.01 80)' }}
-                  formatter={(value: number, name: string) => [formatSilver(value), name === 'minPrice' ? 'Prix Min' : name === 'maxPrice' ? 'Prix Max' : 'Écart']}
-                />
-                <Bar dataKey="minPrice" fill="oklch(0.65 0.2 155)" radius={[0, 2, 2, 0]} name="Prix Min" />
-                <Bar dataKey="maxPrice" fill="oklch(0.65 0.2 25)" radius={[0, 2, 2, 0]} name="Prix Max" />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="space-y-1.5">
+            {topItems.map((item) => {
+              const minPct = (item.minPrice / maxPrice) * 100
+              const maxPct = (item.maxPrice / maxPrice) * 100
+              return (
+                <div key={item.itemId} className="group">
+                  <div className="flex items-center justify-between text-xs mb-0.5">
+                    <span className={`font-medium ${getTierColor(item.name)}`}>{item.name}</span>
+                    <span className="text-muted-foreground font-mono">{formatSilver(item.spread)} d'écart</span>
+                  </div>
+                  <div className="relative h-5 rounded-sm overflow-hidden bg-muted/50">
+                    <div className="absolute top-0 left-0 h-full rounded-sm" style={{ width: `${maxPct}%`, backgroundColor: 'oklch(0.55 0.18 25)' }} title={`Max: ${formatSilver(item.maxPrice)}`} />
+                    <div className="absolute top-0 left-0 h-full rounded-sm" style={{ width: `${minPct}%`, backgroundColor: 'oklch(0.6 0.18 155)' }} title={`Min: ${formatSilver(item.minPrice)}`} />
+                  </div>
+                </div>
+              )
+            })}
+            {topItems.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">Aucune tendance disponible</div>
+            )}
+            <div className="flex items-center justify-center gap-4 pt-2 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: 'oklch(0.6 0.18 155)' }} /> Prix Min</span>
+              <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: 'oklch(0.55 0.18 25)' }} /> Prix Max</span>
+            </div>
           </div>
         </CardContent>
       </Card>
