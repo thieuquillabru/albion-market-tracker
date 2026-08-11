@@ -1,0 +1,706 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useEffect, useState } from 'react'
+     4→     4→import { useAlbionData } from '@/lib/albion-client'
+     5→     5→import type { TopSellingItem, BlackMarketItem, TrendingItem, FlipOpportunity, RefineOpportunity, TransportOpportunity, GoldData } from '@/lib/albion-client'
+     6→     6→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+     7→     7→import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+     8→     8→import { Badge } from '@/components/ui/badge'
+     9→     9→import { Skeleton } from '@/components/ui/skeleton'
+    10→    10→import { ScrollArea } from '@/components/ui/scroll-area'
+    11→    11→import {
+    12→    12→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    13→    13→} from '@/components/ui/table'
+    14→    14→import {
+    15→    15→  TrendingUp, RefreshCw, Coins, Skull, BarChart3, Clock, ArrowUpRight,
+    16→    16→  ArrowRightLeft, Activity, Search, ShoppingBag, Radio, Flame, Truck, Factory,
+    17→    17→} from 'lucide-react'
+    18→    18→import { Button } from '@/components/ui/button'
+    19→    19→
+    20→    20→// --- Utility functions ---
+    21→    21→function formatSilver(price: number | null): string {
+    22→    22→  if (price === null || price === undefined) return '-'
+    23→    23→  if (price >= 1000000) return `${(price / 1000000).toFixed(2)}M`
+    24→    24→  if (price >= 1000) return `${(price / 1000).toFixed(1)}K`
+    25→    25→  return price.toString()
+    26→    26→}
+    27→    27→
+    28→    28→function formatGoldPrice(price: number): string {
+    29→    29→  return price.toLocaleString('fr-FR')
+    30→    30→}
+    31→    31→
+    32→    32→function timeAgo(timestamp: number): string {
+    33→    33→  const seconds = Math.floor((Date.now() - timestamp) / 1000)
+    34→    34→  if (seconds < 10) return "à l'instant"
+    35→    35→  if (seconds < 60) return `il y a ${seconds}s`
+    36→    36→  const minutes = Math.floor(seconds / 60)
+    37→    37→  if (minutes < 60) return `il y a ${minutes}min`
+    38→    38→  const hours = Math.floor(minutes / 60)
+    39→    39→  return `il y a ${hours}h`
+    40→    40→}
+    41→    41→
+    42→    42→function getTierColor(name: string): string {
+    43→    43→  if (name.includes('T8')) return 'text-amber-400'
+    44→    44→  if (name.includes('T7')) return 'text-purple-400'
+    45→    45→  if (name.includes('T6')) return 'text-orange-400'
+    46→    46→  if (name.includes('T5')) return 'text-sky-400'
+    47→    47→  return 'text-foreground'
+    48→    48→}
+    49→    49→
+    50→    50→function getTierBadgeVariant(name: string): 'default' | 'secondary' | 'outline' | 'destructive' {
+    51→    51→  if (name.includes('T8')) return 'default'
+    52→    52→  if (name.includes('T7')) return 'secondary'
+    53→    53→  return 'outline'
+    54→    54→}
+    55→    55→
+    56→    56→function getTierLabel(name: string): string {
+    57→    57→  const match = name.match(/T(\d)/)
+    58→    58→  return match ? `Tier ${match[1]}` : ''
+    59→    59→}
+    60→    60→
+    61→    61→function getItemCategory(name: string): string {
+    62→    62→  const lower = name.toLowerCase()
+    63→    63→  if (lower.includes('minerai') || lower.includes('bois') || lower.includes('fibre') || lower.includes('peau') || lower.includes('pierre')) return 'Ressource'
+    64→    64→  if (lower.includes('lingot') || lower.includes('planche') || lower.includes('tissu') || lower.includes('cuir') || lower.includes('bloc de pierre')) return 'Matériau'
+    65→    65→  if (lower.includes('armure') || lower.includes('coiffe') || lower.includes('chaussures')) return 'Armure'
+    66→    66→  if (lower.includes('sac')) return 'Équipement'
+    67→    67→  if (lower.includes('cape')) return 'Équipement'
+    68→    68→  if (lower.includes('rune') || lower.includes('âme') || lower.includes('relique')) return 'Rune'
+    69→    69→  if (lower.includes('potion')) return 'Potion'
+    70→    70→  return 'Autre'
+    71→    71→}
+    72→    72→
+    73→    73→function getRenderId(dataProjectId: string): string {
+    74→    74→  // Most Data Project IDs match render IDs directly.
+    75→    75→  // Only a few items need remapping.
+    76→    76→  const m = dataProjectId.match(/^(T\d+_|)(.+)$/)
+    77→    77→  if (!m) return dataProjectId
+    78→    78→  const tier = m[1] || ''
+    79→    79→  const base = m[2]
+    80→    80→  const MAP: Record<string, string> = {
+    81→    81→    CLOTH: 'CLOTHITEM',
+    82→    82→    LEATHER: 'LEATHERITEM',
+    83→    83→  }
+    84→    84→  return tier + (MAP[base] || base)
+    85→    85→}
+    86→    86→
+    87→    87→function ItemIcon({ itemId, size = 32 }: { itemId: string; size?: number }) {
+    88→    88→  const [error, setError] = useState(false)
+    89→    89→  const renderId = getRenderId(itemId)
+    90→    90→  const src = `https://render.albiononline.com/v1/item/${renderId}?quality=1`
+    91→    91→  const tier = itemId.match(/T(\d)/)
+    92→    92→  const tierNum = tier ? parseInt(tier[1]) : 4
+    93→    93→  const colors = ['','oklch(0.7 0.15 250)','oklch(0.65 0.2 200)','oklch(0.7 0.18 40)','oklch(0.7 0.18 40)','oklch(0.75 0.2 80)','oklch(0.7 0.2 300)','oklch(0.65 0.22 300)','oklch(0.8 0.18 80)']
+    94→    94→  const color = colors[tierNum] || colors[4]
+    95→    95→  if (error) {
+    96→    96→    return (
+    97→    97→      <div
+    98→    98→        className="inline-flex items-center justify-center rounded-md border border-border/30 flex-shrink-0"
+    99→    99→        style={{ width: size, height: size, minWidth: size, minHeight: size, backgroundColor: color + '33' }}
+   100→   100→        title={renderId}
+   101→   101→      >
+   102→   102→        <span style={{ fontSize: size * 0.45, color, fontWeight: 700, lineHeight: 1 }}>{tier ? tier[1] : '?'}</span>
+   103→   103→      </div>
+   104→   104→    )
+   105→   105→  }
+   106→   106→  return (
+   107→   107→    <img
+   108→   108→      src={src}
+   109→   109→      alt=""
+   110→   110→      width={size}
+   111→   111→      height={size}
+   112→   112→      loading="lazy"
+   113→   113→      onError={() => setError(true)}
+   114→   114→      className="inline-block rounded-md bg-black/30 border border-border/30 flex-shrink-0"
+   115→   115→      style={{ imageRendering: 'auto', minWidth: size, minHeight: size }}
+   116→   116→    />
+   117→   117→  )
+   118→   118→}
+   119→   119→
+   120→   120→// --- Components ---
+   121→   121→
+   122→   122→function LiveIndicator({ connected, lastUpdate, updateCount, fetching }: { connected: boolean; lastUpdate: number; updateCount: number; fetching: boolean }) {
+   123→   123→  return (
+   124→   124→    <div className="flex items-center gap-3 text-sm">
+   125→   125→      <div className="flex items-center gap-2">
+   126→   126→        <span className="relative flex h-2.5 w-2.5">
+   127→   127→          <span className={`live-pulse absolute inline-flex h-full w-full rounded-full opacity-75 ${!connected ? 'bg-red-400' : fetching ? 'bg-amber-400' : 'bg-emerald-400'}`}></span>
+   128→   128→          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${!connected ? 'bg-red-500' : fetching ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
+   129→   129→        </span>
+   130→   130→        <span className={`${!connected ? 'text-red-400' : fetching ? 'text-amber-400' : 'text-emerald-400'} font-medium flex items-center gap-1.5`}>
+   131→   131→          <Radio className="h-3.5 w-3.5" />
+   132→   132→          {!connected ? 'HORS LIGNE' : fetching ? 'SYNC...' : 'LIVE'}
+   133→   133→        </span>
+   134→   134→      </div>
+   135→   135→      {connected && updateCount > 0 && (
+   136→   136→        <span className="text-xs text-muted-foreground font-mono">
+   137→   137→          {updateCount} mises à jour reçues
+   138→   138→        </span>
+   139→   139→      )}
+   140→   140→      {lastUpdate > 0 && (
+   141→   141→        <div className="hidden sm:flex items-center gap-1.5 text-muted-foreground">
+   142→   142→          <Clock className="h-3.5 w-3.5" />
+   143→   143→          <span>{timeAgo(lastUpdate)}</span>
+   144→   144→        </div>
+   145→   145→      )}
+   146→   146→    </div>
+   147→   147→  )
+   148→   148→}
+   149→   149→
+   150→   150→function GoldTicker({ gold }: { gold: GoldData | null }) {
+   151→   151→  return (
+   152→   152→    <Card className="border-amber-500/30 bg-gradient-to-r from-amber-950/40 to-card">
+   153→   153→      <CardContent className="p-4">
+   154→   154→        <div className="flex items-center justify-between">
+   155→   155→          <div className="flex items-center gap-3">
+   156→   156→            <div className="p-2 rounded-lg bg-amber-500/20">
+   157→   157→              <Coins className="h-5 w-5 text-amber-400" />
+   158→   158→            </div>
+   159→   159→            <div>
+   160→   160→              <p className="text-xs text-muted-foreground uppercase tracking-wider">Prix de l'Or</p>
+   161→   161→              <p className="text-2xl font-bold text-amber-400 font-mono">
+   162→   162→                {gold ? formatGoldPrice(gold.price) : '...'}{' '}
+   163→   163→                <span className="text-sm text-muted-foreground font-sans">argent/or</span>
+   164→   164→              </p>
+   165→   165→            </div>
+   166→   166→          </div>
+   167→   167→          {gold && (
+   168→   168→            <div className="text-right">
+   169→   169→              <p className="text-xs text-muted-foreground">
+   170→   170→                {new Date(gold.timestamp).toLocaleString('fr-FR')}
+   171→   171→              </p>
+   172→   172→            </div>
+   173→   173→          )}
+   174→   174→        </div>
+   175→   175→      </CardContent>
+   176→   176→    </Card>
+   177→   177→  )
+   178→   178→}
+   179→   179→
+   180→   180→function StatCard({ icon: Icon, label, value, subtext, color }: { icon: React.ElementType; label: string; value: string | number; subtext?: string; color: string }) {
+   181→   181→  return (
+   182→   182→    <Card>
+   183→   183→      <CardContent className="p-4">
+   184→   184→        <div className="flex items-center gap-3">
+   185→   185→          <div className={`p-2 rounded-lg ${color}`}>
+   186→   186→            <Icon className="h-4 w-4" />
+   187→   187→          </div>
+   188→   188→          <div>
+   189→   189→            <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
+   190→   190→            <p className="text-xl font-bold font-mono">{value}</p>
+   191→   191→            {subtext && <p className="text-xs text-muted-foreground">{subtext}</p>}
+   192→   192→          </div>
+   193→   193→        </div>
+   194→   194→      </CardContent>
+   195→   195→    </Card>
+   196→   196→  )
+   197→   197→}
+   198→   198→
+   199→   199→function TopSellingTable({ items }: { items: TopSellingItem[] }) {
+   200→   200→  return (
+   201→   201→    <div className="rounded-lg border overflow-hidden">
+   202→   202→      <Table>
+   203→   203→        <TableHeader>
+   204→   204→          <TableRow className="hover:bg-transparent border-border/50">
+   205→   205→            <TableHead className="w-8 text-center">#</TableHead>
+   206→   206→            <TableHead>Item</TableHead>
+   207→   207→            <TableHead className="hidden md:table-cell">Catégorie</TableHead>
+   208→   208→            <TableHead className="text-right">Prix Vente</TableHead>
+   209→   209→            <TableHead className="text-right hidden sm:table-cell">Prix Achat</TableHead>
+   210→   210→            <TableHead className="text-right hidden lg:table-cell">Prix Moyen</TableHead>
+   211→   211→            <TableHead className="hidden lg:table-cell">Meilleur Marché</TableHead>
+   212→   212→            <TableHead className="text-center">Activité</TableHead>
+   213→   213→          </TableRow>
+   214→   214→        </TableHeader>
+   215→   215→        <TableBody>
+   216→   216→          {items.map((item, idx) => (
+   217→   217→            <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
+   218→   218→              <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
+   219→   219→              <TableCell>
+   220→   220→                <div className="flex items-center gap-2">
+   221→   221→                  <ItemIcon itemId={item.itemId} size={36} />
+   222→   222→                  <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
+   223→   223→                </div>
+   224→   224→              </TableCell>
+   225→   225→              <TableCell className="hidden md:table-cell">
+   226→   226→                <Badge variant={getTierBadgeVariant(item.name)} className="text-xs">
+   227→   227→                  {getItemCategory(item.name)}
+   228→   228→                </Badge>
+   229→   229→              </TableCell>
+   230→   230→              <TableCell className="text-right font-mono text-emerald-400">
+   231→   231→                {item.bestSellPrice ? formatSilver(item.bestSellPrice) : '-'}
+   232→   232→              </TableCell>
+   233→   233→              <TableCell className="text-right font-mono text-amber-400 hidden sm:table-cell">
+   234→   234→                {item.bestBuyPrice ? formatSilver(item.bestBuyPrice) : '-'}
+   235→   235→              </TableCell>
+   236→   236→              <TableCell className="text-right font-mono hidden lg:table-cell">
+   237→   237→                {item.avgSellPrice ? formatSilver(item.avgSellPrice) : '-'}
+   238→   238→              </TableCell>
+   239→   239→              <TableCell className="hidden lg:table-cell">
+   240→   240→                {item.bestSellCity ? (
+   241→   241→                  <Badge variant="outline" className="text-xs font-normal">{item.bestSellCity}</Badge>
+   242→   242→                ) : '-'}
+   243→   243→              </TableCell>
+   244→   244→              <TableCell className="text-center">
+   245→   245→                <div className="flex items-center justify-center gap-1">
+   246→   246→                  <Activity className="h-3.5 w-3.5 text-primary" />
+   247→   247→                  <span className="font-mono text-sm">{item.totalVolume}</span>
+   248→   248→                </div>
+   249→   249→              </TableCell>
+   250→   250→            </TableRow>
+   251→   251→          ))}
+   252→   252→          {items.length === 0 && (
+   253→   253→            <TableRow>
+   254→   254→              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+   255→   255→                Aucune donnée disponible. Patientez pendant le chargement...
+   256→   256→              </TableCell>
+   257→   257→            </TableRow>
+   258→   258→          )}
+   259→   259→        </TableBody>
+   260→   260→      </Table>
+   261→   261→    </div>
+   262→   262→  )
+   263→   263→}
+   264→   264→
+   265→   265→function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
+   266→   266→  return (
+   267→   267→    <div className="rounded-lg border overflow-hidden">
+   268→   268→      <Table>
+   269→   269→        <TableHeader>
+   270→   270→          <TableRow className="hover:bg-transparent border-border/50">
+   271→   271→            <TableHead className="w-8 text-center">#</TableHead>
+   272→   272→            <TableHead>Item</TableHead>
+   273→   273→            <TableHead className="text-right">Black Market</TableHead>
+   274→   274→            <TableHead className="text-right hidden sm:table-cell">Source</TableHead>
+   275→   275→            <TableHead className="hidden md:table-cell">Ville Source</TableHead>
+   276→   276→            <TableHead className="text-right">Profit</TableHead>
+   277→   277→            <TableHead className="text-right">Marge</TableHead>
+   278→   278→          </TableRow>
+   279→   279→        </TableHeader>
+   280→   280→        <TableBody>
+   281→   281→          {items.map((item, idx) => (
+   282→   282→            <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
+   283→   283→              <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
+   284→   284→              <TableCell>
+   285→   285→                <div className="flex items-center gap-2">
+   286→   286→                  <ItemIcon itemId={item.itemId} size={36} />
+   287→   287→                  <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
+   288→   288→                </div>
+   289→   289→              </TableCell>
+   290→   290→              <TableCell className="text-right font-mono text-amber-400">
+   291→   291→                {formatSilver(item.blackMarketPrice)}
+   292→   292→              </TableCell>
+   293→   293→              <TableCell className="text-right font-mono hidden sm:table-cell">
+   294→   294→                {formatSilver(item.sourcePrice)}
+   295→   295→              </TableCell>
+   296→   296→              <TableCell className="hidden md:table-cell">
+   297→   297→                <Badge variant="outline" className="text-xs font-normal">{item.sourceCity}</Badge>
+   298→   298→              </TableCell>
+   299→   299→              <TableCell className="text-right font-mono text-emerald-400">
+   300→   300→                +{formatSilver(item.profit)}
+   301→   301→              </TableCell>
+   302→   302→              <TableCell className="text-right">
+   303→   303→                <div className="flex items-center justify-end gap-1">
+   304→   304→                  <ArrowUpRight className={`h-4 w-4 ${item.marginPercent > 30 ? 'text-emerald-400' : 'text-amber-400'}`} />
+   305→   305→                  <span className={`font-mono font-semibold ${item.marginPercent > 30 ? 'text-emerald-400' : 'text-amber-400'}`}>
+   306→   306→                    +{item.marginPercent}%
+   307→   307→                  </span>
+   308→   308→                </div>
+   309→   309→              </TableCell>
+   310→   310→            </TableRow>
+   311→   311→          ))}
+   312→   312→          {items.length === 0 && (
+   313→   313→            <TableRow>
+   314→   314→              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+   315→   315→                Aucune opportunité de profit trouvée sur le Black Market
+   316→   316→              </TableCell>
+   317→   317→            </TableRow>
+   318→   318→          )}
+   319→   319→        </TableBody>
+   320→   320→      </Table>
+   321→   321→    </div>
+   322→   322→  )
+   323→   323→}
+   324→   324→
+   325→   325→function TrendingChart({ items }: { items: TrendingItem[] }) {
+   326→   326→  const topItems = items.slice(0, 10)
+   327→   327→  const maxPrice = Math.max(...topItems.map(i => i.maxPrice), 1)
+   328→   328→  return (
+   329→   329→    <div className="space-y-6">
+   330→   330→      <Card>
+   331→   331→        <CardHeader className="pb-2">
+   332→   332→          <CardTitle className="text-base flex items-center gap-2">
+   333→   333→            <BarChart3 className="h-4 w-4 text-primary" />
+   334→   334→            Meilleurs Écarts de Prix Inter-Villes
+   335→   335→          </CardTitle>
+   336→   336→          <CardDescription>Items avec le plus grand écart de prix de vente entre villes (hors Black Market)</CardDescription>
+   337→   337→        </CardHeader>
+   338→   338→        <CardContent>
+   339→   339→          <div className="space-y-1.5">
+   340→   340→            {topItems.map((item) => {
+   341→   341→              const minPct = (item.minPrice / maxPrice) * 100
+   342→   342→              const maxPct = (item.maxPrice / maxPrice) * 100
+   343→   343→              return (
+   344→   344→                <div key={item.itemId} className="group">
+   345→   345→                  <div className="flex items-center justify-between text-xs mb-0.5">
+   346→   346→                    <span className={`font-medium ${getTierColor(item.name)}`}>{item.name}</span>
+   347→   347→                    <span className="text-muted-foreground font-mono">{formatSilver(item.spread)} d'écart</span>
+   348→   348→                  </div>
+   349→   349→                  <div className="relative h-5 rounded-sm overflow-hidden bg-muted/50">
+   350→   350→                    <div className="absolute top-0 left-0 h-full rounded-sm" style={{ width: `${maxPct}%`, backgroundColor: 'oklch(0.55 0.18 25)' }} title={`Max: ${formatSilver(item.maxPrice)}`} />
+   351→   351→                    <div className="absolute top-0 left-0 h-full rounded-sm" style={{ width: `${minPct}%`, backgroundColor: 'oklch(0.6 0.18 155)' }} title={`Min: ${formatSilver(item.minPrice)}`} />
+   352→   352→                  </div>
+   353→   353→                </div>
+   354→   354→              )
+   355→   355→            })}
+   356→   356→            {topItems.length === 0 && (
+   357→   357→              <div className="text-center py-8 text-muted-foreground">Aucune tendance disponible</div>
+   358→   358→            )}
+   359→   359→            <div className="flex items-center justify-center gap-4 pt-2 text-xs text-muted-foreground">
+   360→   360→              <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: 'oklch(0.6 0.18 155)' }} /> Prix Min</span>
+   361→   361→              <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: 'oklch(0.55 0.18 25)' }} /> Prix Max</span>
+   362→   362→            </div>
+   363→   363→          </div>
+   364→   364→        </CardContent>
+   365→   365→      </Card>
+   366→   366→      <Card>
+   367→   367→        <CardHeader className="pb-2">
+   368→   368→          <CardTitle className="text-base flex items-center gap-2">
+   369→   369→            <Search className="h-4 w-4 text-primary" />
+   370→   370→            Détail des Tendances
+   371→   371→          </CardTitle>
+   372→   372→          <CardDescription>Items les plus recherchés avec leurs prix par ville</CardDescription>
+   373→   373→        </CardHeader>
+   374→   374→        <CardContent>
+   375→   375→          <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-2">
+   376→   376→            {items.map((item) => (
+   377→   377→              <div key={item.itemId} className="p-3 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors">
+   378→   378→                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+   379→   379→                  <div className="flex items-center gap-2 flex-wrap">
+   380→   380→                    <ItemIcon itemId={item.itemId} size={36} />
+   381→   381→                    <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
+   382→   382→                    <Badge variant={getTierBadgeVariant(item.name)} className="text-xs">{getTierLabel(item.name)}</Badge>
+   383→   383→                    <Badge variant="outline" className="text-xs">{item.cityCount} villes</Badge>
+   384→   384→                  </div>
+   385→   385→                  <div className="flex items-center gap-3 text-sm flex-wrap">
+   386→   386→                    <span className="text-muted-foreground">Moy: <span className="font-mono text-foreground">{formatSilver(item.avgPrice)}</span></span>
+   387→   387→                    <span className="text-emerald-400">Min: <span className="font-mono">{formatSilver(item.minPrice)}</span></span>
+   388→   388→                    <span className="text-red-400">Max: <span className="font-mono">{formatSilver(item.maxPrice)}</span></span>
+   389→   389→                    <span className="text-sky-400">Écart: <span className="font-mono">{formatSilver(item.spread)}</span></span>
+   390→   390→                  </div>
+   391→   391→                </div>
+   392→   392→                <div className="flex flex-wrap gap-2">
+   393→   393→                  {item.cities.map((c) => (
+   394→   394→                    <div key={c.city} className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-background/50 text-xs">
+   395→   395→                      <span className="text-muted-foreground">{c.city}:</span>
+   396→   396→                      {c.sellPrice && <span className="font-mono text-emerald-400">V {formatSilver(c.sellPrice)}</span>}
+   397→   397→                      {c.buyPrice && c.buyPrice > 0 && <span className="font-mono text-amber-400">A {formatSilver(c.buyPrice)}</span>}
+   398→   398→                    </div>
+   399→   399→                  ))}
+   400→   400→                </div>
+   401→   401→              </div>
+   402→   402→            ))}
+   403→   403→            {items.length === 0 && (
+   404→   404→              <div className="text-center py-8 text-muted-foreground">Aucune tendance disponible</div>
+   405→   405→            )}
+   406→   406→          </div>
+   407→   407→        </CardContent>
+   408→   408→      </Card>
+   409→   409→    </div>
+   410→   410→  )
+   411→   411→}
+   412→   412→
+   413→   413→function FlipOpportunitiesTable({ items }: { items: FlipOpportunity[] }) {
+   414→   414→  return (
+   415→   415→    <div className="rounded-lg border overflow-hidden">
+   416→   416→      <Table>
+   417→   417→        <TableHeader>
+   418→   418→          <TableRow className="hover:bg-transparent border-border/50">
+   419→   419→            <TableHead className="w-8 text-center">#</TableHead>
+   420→   420→            <TableHead>Item</TableHead>
+   421→   421→            <TableHead className="hidden md:table-cell">Acheter à</TableHead>
+   422→   422→            <TableHead className="text-right">Prix Achat</TableHead>
+   423→   423→            <TableHead className="hidden md:table-cell">Vendre à</TableHead>
+   424→   424→            <TableHead className="text-right">Prix Vente</TableHead>
+   425→   425→            <TableHead className="text-right">Profit</TableHead>
+   426→   426→            <TableHead className="text-right">Marge</TableHead>
+   427→   427→          </TableRow>
+   428→   428→        </TableHeader>
+   429→   429→        <TableBody>
+   430→   430→          {items.map((item, idx) => (
+   431→   431→            <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
+   432→   432→              <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
+   433→   433→              <TableCell><div className="flex items-center gap-2"><ItemIcon itemId={item.itemId} size={40} /><span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span></div></TableCell>
+   434→   434→              <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-sky-400 border-sky-500/30">{item.buyCity}</Badge></TableCell>
+   435→   435→              <TableCell className="text-right font-mono text-amber-400">{formatSilver(item.buyPrice)}</TableCell>
+   436→   436→              <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-emerald-400 border-emerald-500/30">{item.sellCity}</Badge></TableCell>
+   437→   437→              <TableCell className="text-right font-mono text-emerald-400">{formatSilver(item.sellPrice)}</TableCell>
+   438→   438→              <TableCell className="text-right font-mono font-semibold text-emerald-400">+{formatSilver(item.profit)}</TableCell>
+   439→   439→              <TableCell className="text-right">
+   440→   440→                <span className={`font-mono font-semibold ${item.marginPercent > 20 ? 'text-emerald-400' : 'text-amber-400'}`}>+{item.marginPercent}%</span>
+   441→   441→              </TableCell>
+   442→   442→            </TableRow>
+   443→   443→          ))}
+   444→   444→          {items.length === 0 && (
+   445→   445→            <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Aucune opportunité d'achat/revente détectée</TableCell></TableRow>
+   446→   446→          )}
+   447→   447→        </TableBody>
+   448→   448→      </Table>
+   449→   449→    </div>
+   450→   450→  )
+   451→   451→}
+   452→   452→
+   453→   453→function RefineOpportunitiesTable({ items }: { items: RefineOpportunity[] }) {
+   454→   454→  return (
+   455→   455→    <div className="rounded-lg border overflow-hidden">
+   456→   456→      <Table>
+   457→   457→        <TableHeader>
+   458→   458→          <TableRow className="hover:bg-transparent border-border/50">
+   459→   459→            <TableHead className="w-8 text-center">#</TableHead>
+   460→   460→            <TableHead>Produit Raffiné</TableHead>
+   461→   461→            <TableHead className="hidden lg:table-cell">Matière Première</TableHead>
+   462→   462→            <TableHead className="hidden md:table-cell">Ratio</TableHead>
+   463→   463→            <TableHead className="hidden md:table-cell">Acheter à</TableHead>
+   464→   464→            <TableHead className="text-right hidden sm:table-cell">Coût Brut</TableHead>
+   465→   465→            <TableHead className="hidden md:table-cell">Vendre à</TableHead>
+   466→   466→            <TableHead className="text-right">Profit</TableHead>
+   467→   467→            <TableHead className="text-right">Marge</TableHead>
+   468→   468→            <TableHead className="hidden lg:table-cell text-center">Bonus</TableHead>
+   469→   469→          </TableRow>
+   470→   470→        </TableHeader>
+   471→   471→        <TableBody>
+   472→   472→          {items.map((item, idx) => (
+   473→   473→            <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
+   474→   474→              <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
+   475→   475→              <TableCell>
+   476→   476→                <div className="flex items-center gap-2">
+   477→   477→                  <ItemIcon itemId={item.itemId} size={36} />
+   478→   478→                  <div>
+   479→   479→                    <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
+   480→   480→                    <span className="text-xs text-muted-foreground ml-1">T{item.tier}</span>
+   481→   481→                  </div>
+   482→   482→                </div>
+   483→   483→              </TableCell>
+   484→   484→              <TableCell className="hidden lg:table-cell">
+   485→   485→                <span className="text-sm text-muted-foreground">{item.rawName}</span>
+   486→   486→                <span className="text-xs text-muted-foreground ml-1">@ {formatSilver(item.rawPrice)}</span>
+   487→   487→              </TableCell>
+   488→   488→              <TableCell className="hidden md:table-cell font-mono text-sm text-muted-foreground">{item.ratio}:1</TableCell>
+   489→   489→              <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-sky-400 border-sky-500/30">{item.buyCity}</Badge></TableCell>
+   490→   490→              <TableCell className="text-right font-mono text-amber-400 hidden sm:table-cell">{formatSilver(item.costRaw)}</TableCell>
+   491→   491→              <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-emerald-400 border-emerald-500/30">{item.sellCity}</Badge></TableCell>
+   492→   492→              <TableCell className="text-right font-mono font-semibold text-emerald-400">+{formatSilver(item.profit)}</TableCell>
+   493→   493→              <TableCell className="text-right">
+   494→   494→                <span className={`font-mono font-semibold ${item.marginPercent > 15 ? 'text-emerald-400' : 'text-amber-400'}`}>+{item.marginPercent}%</span>
+   495→   495→              </TableCell>
+   496→   496→              <TableCell className="hidden lg:table-cell text-center">
+   497→   497→                {item.hasBonus ? (
+   498→   498→                  <Badge className="text-xs bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30">{item.bonusCity}</Badge>
+   499→   499→                ) : <span className="text-xs text-muted-foreground">-</span>}
+   500→   500→              </TableCell>
+   501→   501→            </TableRow>
+   502→   502→          ))}
+   503→   503→          {items.length === 0 && (
+   504→   504→            <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Aucune opportunité de raffinage rentable détectée</TableCell></TableRow>
+   505→   505→          )}
+   506→   506→        </TableBody>
+   507→   507→      </Table>
+   508→   508→    </div>
+   509→   509→  )
+   510→   510→}
+   511→   511→
+   512→   512→function TransportOpportunitiesTable({ items }: { items: TransportOpportunity[] }) {
+   513→   513→  return (
+   514→   514→    <div className="rounded-lg border overflow-hidden">
+   515→   515→      <Table>
+   516→   516→        <TableHeader>
+   517→   517→          <TableRow className="hover:bg-transparent border-border/50">
+   518→   518→            <TableHead className="w-8 text-center">#</TableHead>
+   519→   519→            <TableHead>Ressource</TableHead>
+   520→   520→            <TableHead className="hidden md:table-cell">De</TableHead>
+   521→   521→            <TableHead className="text-right hidden sm:table-cell">Achat</TableHead>
+   522→   522→            <TableHead className="hidden md:table-cell">Vers</TableHead>
+   523→   523→            <TableHead className="text-right hidden sm:table-cell">Vente</TableHead>
+   524→   524→            <TableHead className="text-right">Profit</TableHead>
+   525→   525→            <TableHead className="text-right">Marge</TableHead>
+   526→   526→            <TableHead className="hidden lg:table-cell">Route</TableHead>
+   527→   527→          </TableRow>
+   528→   528→        </TableHeader>
+   529→   529→        <TableBody>
+   530→   530→          {items.map((item, idx) => (
+   531→   531→            <TableRow key={`${item.itemId}-${item.fromCity}-${item.toCity}`} className="border-border/30 hover:bg-muted/50 transition-colors">
+   532→   532→              <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
+   533→   533→              <TableCell><div className="flex items-center gap-2"><ItemIcon itemId={item.itemId} size={40} /><span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span></div></TableCell>
+   534→   534→              <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-sky-400 border-sky-500/30">{item.fromCity}</Badge></TableCell>
+   535→   535→              <TableCell className="text-right font-mono text-amber-400 hidden sm:table-cell">{formatSilver(item.buyPrice)}</TableCell>
+   536→   536→              <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-emerald-400 border-emerald-500/30">{item.toCity}</Badge></TableCell>
+   537→   537→              <TableCell className="text-right font-mono text-emerald-400 hidden sm:table-cell">{formatSilver(item.sellPrice)}</TableCell>
+   538→   538→              <TableCell className="text-right font-mono font-semibold text-emerald-400">+{formatSilver(item.profit)}</TableCell>
+   539→   539→              <TableCell className="text-right">
+   540→   540→                <span className={`font-mono font-semibold ${item.marginPercent > 15 ? 'text-emerald-400' : 'text-amber-400'}`}>+{item.marginPercent}%</span>
+   541→   541→              </TableCell>
+   542→   542→              <TableCell className="hidden lg:table-cell">
+   543→   543→                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+   544→   544→                  <span className="text-sky-400">{item.fromCity}</span>
+   545→   545→                  <ArrowRightLeft className="h-3 w-3 text-primary" />
+   546→   546→                  <span className="text-emerald-400">{item.toCity}</span>
+   547→   547→                </div>
+   548→   548→              </TableCell>
+   549→   549→            </TableRow>
+   550→   550→          ))}
+   551→   551→          {items.length === 0 && (
+   552→   552→            <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Aucune route de transport rentable détectée</TableCell></TableRow>
+   553→   553→          )}
+   554→   554→        </TableBody>
+   555→   555→      </Table>
+   556→   556→    </div>
+   557→   557→  )
+   558→   558→}
+   559→   559→
+   560→   560→function LoadingSkeleton() {
+   561→   561→  return (
+   562→   562→    <div className="space-y-6">
+   563→   563→      <Skeleton className="h-20 rounded-lg" />
+   564→   564→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   565→   565→        <Skeleton className="h-20 rounded-lg" /><Skeleton className="h-20 rounded-lg" />
+   566→   566→        <Skeleton className="h-20 rounded-lg" /><Skeleton className="h-20 rounded-lg" />
+   567→   567→      </div>
+   568→   568→      <Skeleton className="h-64 rounded-lg" />
+   569→   569→      <div className="space-y-2">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-12 rounded-lg" />)}</div>
+   570→   570→    </div>
+   571→   571→  )
+   572→   572→}
+   573→   573→
+   574→   574→// --- Main Page ---
+   575→   575→export default function AlbionMarketTracker() {
+   576→   576→  const { topSelling, blackMarket, trending, opportunities, gold, totalItemsTracked,
+   577→   577→          lastUpdate, loading, fetching, connected, updateCount, refresh } = useAlbionData(30000)
+   578→   578→
+   579→   579→  // Time ago ticker
+   580→   580→  const [, setTick] = useState(0)
+   581→   581→  useEffect(() => {
+   582→   582→    const interval = setInterval(() => setTick(t => t + 1), 5000)
+   583→   583→    return () => clearInterval(interval)
+   584→   584→  }, [])
+   585→   585→
+   586→   586→  const avgBlackMarketMargin = blackMarket.length > 0
+   587→   587→    ? Math.round(blackMarket.reduce((sum, i) => sum + i.marginPercent, 0) / blackMarket.length)
+   588→   588→    : 0
+   589→   589→
+   590→   590→  return (
+   591→   591→    <div className="min-h-screen flex flex-col bg-background">
+   592→   592→      {/* Header */}
+   593→   593→      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+   594→   594→        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+   595→   595→          <div className="flex items-center justify-between">
+   596→   596→            <div className="flex items-center gap-3">
+   597→   597→              <div className="p-2 rounded-lg bg-primary/20 border border-primary/30">
+   598→   598→                <ShoppingBag className="h-5 w-5 text-primary" />
+   599→   599→              </div>
+   600→   600→              <div>
+   601→   601→                <h1 className="text-lg sm:text-xl font-bold tracking-tight">
+   602→   602→                  Albion Market <span className="text-primary">Tracker</span>
+   603→   603→                </h1>
+   604→   604→                <p className="text-xs text-muted-foreground hidden sm:block">
+   605→   605→                  Données en temps réel du marché &amp; black market
+   606→   606→                </p>
+   607→   607→              </div>
+   608→   608→            </div>
+   609→   609→            <div className="flex items-center gap-3">
+   610→   610→              <LiveIndicator connected={connected} lastUpdate={lastUpdate} updateCount={updateCount} fetching={fetching} />
+   611→   611→              <Button variant="outline" size="icon" onClick={refresh} disabled={fetching} title="Rafraîchir">
+   612→   612→                <RefreshCw className={`h-4 w-4 ${fetching ? 'animate-spin' : ''}`} />
+   613→   613→              </Button>
+   614→   614→            </div>
+   615→   615→          </div>
+   616→   616→        </div>
+   617→   617→      </header>
+   618→   618→
+   619→   619→      {/* Main Content */}
+   620→   620→      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 space-y-6">
+   621→   621→        <GoldTicker gold={gold} />
+   622→   622→
+   623→   623→        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+   624→   624→          <StatCard icon={BarChart3} label="Items Suivis" value={totalItemsTracked} subtext="sur tous les marchés" color="bg-primary/20 text-primary" />
+   625→   625→          <StatCard icon={TrendingUp} label="Top Ventes" value={topSelling.length} subtext="items les plus actifs" color="bg-emerald-500/20 text-emerald-400" />
+   626→   626→          <StatCard icon={Skull} label="Black Market" value={blackMarket.length} subtext="opportunités détectées" color="bg-red-500/20 text-red-400" />
+   627→   627→          <StatCard icon={Coins} label="Marge Moyenne" value={`${avgBlackMarketMargin}%`} subtext="marge bénéficiaire BM" color="bg-amber-500/20 text-amber-400" />
+   628→   628→        </div>
+   629→   629→
+   630→   630→        {loading ? (
+   631→   631→          <LoadingSkeleton />
+   632→   632→        ) : (
+   633→   633→          <Tabs defaultValue="market" className="space-y-4">
+   634→   634→            <TabsList className="grid w-full grid-cols-4">
+   635→   635→              <TabsTrigger value="market" className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /><span className="hidden sm:inline">Marché</span></TabsTrigger>
+   636→   636→              <TabsTrigger value="blackmarket" className="flex items-center gap-2"><Skull className="h-4 w-4" /><span className="hidden sm:inline">Black Market</span></TabsTrigger>
+   637→   637→              <TabsTrigger value="trending" className="flex items-center gap-2"><Activity className="h-4 w-4" /><span className="hidden sm:inline">Tendances</span></TabsTrigger>
+   638→   638→              <TabsTrigger value="opportunities" className="flex items-center gap-2"><Flame className="h-4 w-4" /><span className="hidden sm:inline">Opportunités</span></TabsTrigger>
+   639→   639→            </TabsList>
+   640→   640→
+   641→   641→            <TabsContent value="market" className="space-y-4">
+   642→   642→              <div>
+   643→   643→                <h2 className="text-lg font-semibold">Items les Plus Recherchés &amp; Vendus</h2>
+   644→   644→                <p className="text-sm text-muted-foreground">Classés par volume d'activité sur tous les marchés royaux</p>
+   645→   645→              </div>
+   646→   646→              <ScrollArea className="max-h-[55vh]"><TopSellingTable items={topSelling} /></ScrollArea>
+   647→   647→            </TabsContent>
+   648→   648→
+   649→   649→            <TabsContent value="blackmarket" className="space-y-4">
+   650→   650→              <div>
+   651→   651→                <h2 className="text-lg font-semibold flex items-center gap-2"><Skull className="h-5 w-5 text-red-400" />Opportunités Black Market</h2>
+   652→   652→                <p className="text-sm text-muted-foreground">Acheter sur les marchés royaux et revendre au Black Market de Caerleon</p>
+   653→   653→              </div>
+   654→   654→              <ScrollArea className="max-h-[55vh]"><BlackMarketTable items={blackMarket} /></ScrollArea>
+   655→   655→            </TabsContent>
+   656→   656→
+   657→   657→            <TabsContent value="trending" className="space-y-4">
+   658→   658→              <div>
+   659→   659→                <h2 className="text-lg font-semibold">Tendances du Marché</h2>
+   660→   660→                <p className="text-sm text-muted-foreground">Items les plus recherchés avec écarts de prix inter-villes</p>
+   661→   661→              </div>
+   662→   662→              <TrendingChart items={trending} />
+   663→   663→            </TabsContent>
+   664→   664→
+   665→   665→            <TabsContent value="opportunities">
+   666→   666→              <div className="max-h-[75vh] overflow-y-auto space-y-6 pr-1">
+   667→   667→                <div>
+   668→   668→                  <h2 className="text-lg font-semibold flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-primary" />Achat / Revente Inter-Villes</h2>
+   669→   669→                  <p className="text-sm text-muted-foreground">Acheter au prix le plus bas dans une ville et revendre au prix d'achat le plus élevé dans une autre — classé par profit absolu</p>
+   670→   670→                </div>
+   671→   671→                <FlipOpportunitiesTable items={opportunities.flip} />
+   672→   672→
+   673→   673→                <div className="border-t border-border pt-6">
+   674→   674→                  <h2 className="text-lg font-semibold flex items-center gap-2"><Factory className="h-5 w-5 text-amber-400" />Meilleures Opportunités de Raffinage</h2>
+   675→   675→                  <p className="text-sm text-muted-foreground">Acheter des matières premières, les raffiner, et vendre le produit fini — les ratios T4-T6: 2:1, T7: 3:1, T8: 4:1</p>
+   676→   676→                </div>
+   677→   677→                <RefineOpportunitiesTable items={opportunities.refine} />
+   678→   678→
+   679→   679→                <div className="border-t border-border pt-6">
+   680→   680→                  <h2 className="text-lg font-semibold flex items-center gap-2"><Truck className="h-5 w-5 text-sky-400" />Meilleures Routes de Transport</h2>
+   681→   681→                  <p className="text-sm text-muted-foreground">Ressources et matériaux avec le plus gros écart de prix entre deux villes — idéal pour le transport de marchandises</p>
+   682→   682→                </div>
+   683→   683→                <TransportOpportunitiesTable items={opportunities.transport} />
+   684→   684→              </div>
+   685→   685→            </TabsContent>
+   686→   686→          </Tabs>
+   687→   687→        )}
+   688→   688→      </main>
+   689→   689→
+   690→   690→      <footer className="border-t border-border/50 bg-background/80 backdrop-blur-xl mt-auto">
+   691→   691→        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+   692→   692→          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+   693→   693→            <p>Données fournies par{' '}
+   694→   694→              <a href="https://www.albion-online-data.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Albion Online Data Project</a>
+   695→   695→            </p>
+   696→   696→            <p className="flex items-center gap-1.5">
+   697→   697→              <Radio className="h-3 w-3 text-emerald-400" />
+   698→   698→              Données mises à jour automatiquement toutes les 30s
+   699→   699→            </p>
+   700→   700→          </div>
+   701→   701→        </div>
+   702→   702→      </footer>
+   703→   703→    </div>
+   704→   704→  )
+   705→   705→}
+   706→   706→

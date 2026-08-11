@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
@@ -121,26 +120,26 @@ function ItemIcon({ itemId, size = 32 }: { itemId: string; size?: number }) {
 
 function LiveIndicator({ connected, lastUpdate, updateCount, fetching }: { connected: boolean; lastUpdate: number; updateCount: number; fetching: boolean }) {
   return (
-    <div className="flex items-center gap-3 text-sm">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 text-sm min-w-0">
+      <div className="flex items-center gap-1.5 flex-shrink-0">
         <span className="relative flex h-2.5 w-2.5">
           <span className={`live-pulse absolute inline-flex h-full w-full rounded-full opacity-75 ${!connected ? 'bg-red-400' : fetching ? 'bg-amber-400' : 'bg-emerald-400'}`}></span>
           <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${!connected ? 'bg-red-500' : fetching ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
         </span>
-        <span className={`${!connected ? 'text-red-400' : fetching ? 'text-amber-400' : 'text-emerald-400'} font-medium flex items-center gap-1.5`}>
-          <Radio className="h-3.5 w-3.5" />
+        <span className={`${!connected ? 'text-red-400' : fetching ? 'text-amber-400' : 'text-emerald-400'} font-medium flex items-center gap-1 text-xs sm:text-sm`}>
+          <Radio className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           {!connected ? 'HORS LIGNE' : fetching ? 'SYNC...' : 'LIVE'}
         </span>
       </div>
       {connected && updateCount > 0 && (
-        <span className="text-xs text-muted-foreground font-mono">
-          {updateCount} mises à jour reçues
+        <span className="text-xs text-muted-foreground font-mono hidden sm:inline">
+          {updateCount} maj
         </span>
       )}
       {lastUpdate > 0 && (
-        <div className="hidden sm:flex items-center gap-1.5 text-muted-foreground">
+        <div className="hidden md:flex items-center gap-1.5 text-muted-foreground flex-shrink-0">
           <Clock className="h-3.5 w-3.5" />
-          <span>{timeAgo(lastUpdate)}</span>
+          <span className="text-xs">{timeAgo(lastUpdate)}</span>
         </div>
       )}
     </div>
@@ -198,8 +197,8 @@ function StatCard({ icon: Icon, label, value, subtext, color }: { icon: React.El
 
 function TopSellingTable({ items }: { items: TopSellingItem[] }) {
   return (
-    <div className="rounded-lg border overflow-hidden">
-      <Table>
+    <div className="rounded-lg border">
+      <Table className="min-w-[700px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent border-border/50">
             <TableHead className="w-8 text-center">#</TableHead>
@@ -216,10 +215,10 @@ function TopSellingTable({ items }: { items: TopSellingItem[] }) {
           {items.map((item, idx) => (
             <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
+              <TableCell className="max-w-[220px]">
+                <div className="flex items-center gap-2 min-w-0">
                   <ItemIcon itemId={item.itemId} size={36} />
-                  <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
+                  <span className={`font-semibold truncate ${getTierColor(item.name)}`}>{item.name}</span>
                 </div>
               </TableCell>
               <TableCell className="hidden md:table-cell">
@@ -264,8 +263,8 @@ function TopSellingTable({ items }: { items: TopSellingItem[] }) {
 
 function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
   return (
-    <div className="rounded-lg border overflow-hidden">
-      <Table>
+    <div className="rounded-lg border">
+      <Table className="min-w-[600px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent border-border/50">
             <TableHead className="w-8 text-center">#</TableHead>
@@ -281,10 +280,10 @@ function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
           {items.map((item, idx) => (
             <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
+              <TableCell className="max-w-[200px]">
+                <div className="flex items-center gap-2 min-w-0">
                   <ItemIcon itemId={item.itemId} size={36} />
-                  <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
+                  <span className={`font-semibold truncate ${getTierColor(item.name)}`}>{item.name}</span>
                 </div>
               </TableCell>
               <TableCell className="text-right font-mono text-amber-400">
@@ -412,8 +411,8 @@ function TrendingChart({ items }: { items: TrendingItem[] }) {
 
 function FlipOpportunitiesTable({ items }: { items: FlipOpportunity[] }) {
   return (
-    <div className="rounded-lg border overflow-hidden">
-      <Table>
+    <div className="rounded-lg border">
+      <Table className="min-w-[650px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent border-border/50">
             <TableHead className="w-8 text-center">#</TableHead>
@@ -430,7 +429,7 @@ function FlipOpportunitiesTable({ items }: { items: FlipOpportunity[] }) {
           {items.map((item, idx) => (
             <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
-              <TableCell><div className="flex items-center gap-2"><ItemIcon itemId={item.itemId} size={40} /><span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span></div></TableCell>
+              <TableCell className="max-w-[220px]"><div className="flex items-center gap-2 min-w-0"><ItemIcon itemId={item.itemId} size={40} /><span className={`font-semibold truncate ${getTierColor(item.name)}`}>{item.name}</span></div></TableCell>
               <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-sky-400 border-sky-500/30">{item.buyCity}</Badge></TableCell>
               <TableCell className="text-right font-mono text-amber-400">{formatSilver(item.buyPrice)}</TableCell>
               <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-emerald-400 border-emerald-500/30">{item.sellCity}</Badge></TableCell>
@@ -452,8 +451,8 @@ function FlipOpportunitiesTable({ items }: { items: FlipOpportunity[] }) {
 
 function RefineOpportunitiesTable({ items }: { items: RefineOpportunity[] }) {
   return (
-    <div className="rounded-lg border overflow-hidden">
-      <Table>
+    <div className="rounded-lg border">
+      <Table className="min-w-[900px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent border-border/50">
             <TableHead className="w-8 text-center">#</TableHead>
@@ -472,17 +471,17 @@ function RefineOpportunitiesTable({ items }: { items: RefineOpportunity[] }) {
           {items.map((item, idx) => (
             <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
+              <TableCell className="max-w-[220px]">
+                <div className="flex items-center gap-2 min-w-0">
                   <ItemIcon itemId={item.itemId} size={36} />
-                  <div>
-                    <span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span>
-                    <span className="text-xs text-muted-foreground ml-1">T{item.tier}</span>
+                  <div className="min-w-0">
+                    <span className={`font-semibold truncate block ${getTierColor(item.name)}`}>{item.name}</span>
+                    <span className="text-xs text-muted-foreground">T{item.tier}</span>
                   </div>
                 </div>
               </TableCell>
-              <TableCell className="hidden lg:table-cell">
-                <span className="text-sm text-muted-foreground">{item.rawName}</span>
+              <TableCell className="hidden lg:table-cell max-w-[180px]">
+                <span className="text-sm text-muted-foreground truncate block">{item.rawName}</span>
                 <span className="text-xs text-muted-foreground ml-1">@ {formatSilver(item.rawPrice)}</span>
               </TableCell>
               <TableCell className="hidden md:table-cell font-mono text-sm text-muted-foreground">{item.ratio}:1</TableCell>
@@ -511,8 +510,8 @@ function RefineOpportunitiesTable({ items }: { items: RefineOpportunity[] }) {
 
 function TransportOpportunitiesTable({ items }: { items: TransportOpportunity[] }) {
   return (
-    <div className="rounded-lg border overflow-hidden">
-      <Table>
+    <div className="rounded-lg border">
+      <Table className="min-w-[750px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent border-border/50">
             <TableHead className="w-8 text-center">#</TableHead>
@@ -530,7 +529,7 @@ function TransportOpportunitiesTable({ items }: { items: TransportOpportunity[] 
           {items.map((item, idx) => (
             <TableRow key={`${item.itemId}-${item.fromCity}-${item.toCity}`} className="border-border/30 hover:bg-muted/50 transition-colors">
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
-              <TableCell><div className="flex items-center gap-2"><ItemIcon itemId={item.itemId} size={40} /><span className={`font-semibold ${getTierColor(item.name)}`}>{item.name}</span></div></TableCell>
+              <TableCell className="max-w-[220px]"><div className="flex items-center gap-2 min-w-0"><ItemIcon itemId={item.itemId} size={40} /><span className={`font-semibold truncate ${getTierColor(item.name)}`}>{item.name}</span></div></TableCell>
               <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-sky-400 border-sky-500/30">{item.fromCity}</Badge></TableCell>
               <TableCell className="text-right font-mono text-amber-400 hidden sm:table-cell">{formatSilver(item.buyPrice)}</TableCell>
               <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-emerald-400 border-emerald-500/30">{item.toCity}</Badge></TableCell>
@@ -591,9 +590,9 @@ export default function AlbionMarketTracker() {
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <div className="p-2 rounded-lg bg-primary/20 border border-primary/30">
                 <ShoppingBag className="h-5 w-5 text-primary" />
               </div>
@@ -643,7 +642,7 @@ export default function AlbionMarketTracker() {
                 <h2 className="text-lg font-semibold">Items les Plus Recherchés &amp; Vendus</h2>
                 <p className="text-sm text-muted-foreground">Classés par volume d'activité sur tous les marchés royaux</p>
               </div>
-              <ScrollArea className="max-h-[55vh]"><TopSellingTable items={topSelling} /></ScrollArea>
+              <div className="overflow-auto max-h-[55vh] rounded-lg"><TopSellingTable items={topSelling} /></div>
             </TabsContent>
 
             <TabsContent value="blackmarket" className="space-y-4">
@@ -651,7 +650,7 @@ export default function AlbionMarketTracker() {
                 <h2 className="text-lg font-semibold flex items-center gap-2"><Skull className="h-5 w-5 text-red-400" />Opportunités Black Market</h2>
                 <p className="text-sm text-muted-foreground">Acheter sur les marchés royaux et revendre au Black Market de Caerleon</p>
               </div>
-              <ScrollArea className="max-h-[55vh]"><BlackMarketTable items={blackMarket} /></ScrollArea>
+              <div className="overflow-auto max-h-[55vh] rounded-lg"><BlackMarketTable items={blackMarket} /></div>
             </TabsContent>
 
             <TabsContent value="trending" className="space-y-4">
@@ -663,7 +662,7 @@ export default function AlbionMarketTracker() {
             </TabsContent>
 
             <TabsContent value="opportunities">
-              <div className="max-h-[75vh] overflow-y-auto space-y-6 pr-1">
+              <div className="overflow-auto max-h-[75vh] space-y-6 pr-1">
                 <div>
                   <h2 className="text-lg font-semibold flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-primary" />Achat / Revente Inter-Villes</h2>
                   <p className="text-sm text-muted-foreground">Acheter au prix le plus bas dans une ville et revendre au prix d'achat le plus élevé dans une autre — classé par profit absolu</p>
