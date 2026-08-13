@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useAlbionData } from '@/lib/albion-client'
 import type { TopSellingItem, BlackMarketItem, TrendingItem, FlipOpportunity, RefineOpportunity, TransportOpportunity, GoldData, DataQuality } from '@/lib/albion-client'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -13,11 +13,15 @@ import {
 import {
   TrendingUp, RefreshCw, Coins, Skull, BarChart3, Clock, ArrowUpRight,
   ArrowRightLeft, Activity, Search, ShoppingBag, Radio, Flame, Truck, Factory,
-  AlertTriangle, ShieldCheck, Zap,
+  AlertTriangle, ShieldCheck, Zap, Star, ArrowUpDown, ArrowUp, ArrowDown,
+  Eye, EyeOff, Filter,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-// --- Utility functions ---
+// ============================================================
+// Utility functions
+// ============================================================
+
 function formatSilver(price: number | null): string {
   if (price === null || price === undefined) return '-'
   if (price >= 1000000) return `${(price / 1000000).toFixed(2)}M`
@@ -25,15 +29,15 @@ function formatSilver(price: number | null): string {
   return price.toString()
 }
 
-function formatDataAge(dateStr: string | null): { text: string; stale: boolean } {
-  if (!dateStr) return { text: '-', stale: true }
+function formatDataAge(dateStr: string | null): { text: string; stale: boolean; minutes: number } {
+  if (!dateStr) return { text: '-', stale: true, minutes: 9999 }
   const minutes = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000)
-  if (minutes < 5) return { text: '< 5min', stale: false }
-  if (minutes < 60) return { text: `${minutes}min`, stale: false }
+  if (minutes < 5) return { text: '< 5min', stale: false, minutes }
+  if (minutes < 60) return { text: `${minutes}min`, stale: false, minutes }
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return { text: `${hours}h`, stale: true }
+  if (hours < 24) return { text: `${hours}h`, stale: true, minutes }
   const days = Math.floor(hours / 24)
-  return { text: `${days}j`, stale: true }
+  return { text: `${days}j`, stale: true, minutes }
 }
 
 function formatGoldPrice(price: number): string {
@@ -42,7 +46,7 @@ function formatGoldPrice(price: number): string {
 
 function timeAgo(timestamp: number): string {
   const seconds = Math.floor((Date.now() - timestamp) / 1000)
-  if (seconds < 10) return "à l'instant"
+  if (seconds < 10) return "\u00e0 l'instant"
   if (seconds < 60) return `il y a ${seconds}s`
   const minutes = Math.floor(seconds / 60)
   if (minutes < 60) return `il y a ${minutes}min`
@@ -72,28 +76,85 @@ function getTierLabel(name: string): string {
 function getItemCategory(name: string): string {
   const lower = name.toLowerCase()
   if (lower.includes('minerai') || lower.includes('bois') || lower.includes('fibre') || lower.includes('peau') || lower.includes('pierre')) return 'Ressource'
-  if (lower.includes('lingot') || lower.includes('planche') || lower.includes('tissu') || lower.includes('cuir') || lower.includes('bloc de pierre')) return 'Matériau'
+  if (lower.includes('lingot') || lower.includes('planche') || lower.includes('tissu') || lower.includes('cuir') || lower.includes('bloc de pierre')) return 'Mat\u00e9riau'
   if (lower.includes('armure') || lower.includes('coiffe') || lower.includes('chaussures')) return 'Armure'
-  if (lower.includes('sac')) return 'Équipement'
-  if (lower.includes('cape')) return 'Équipement'
-  if (lower.includes('rune') || lower.includes('âme') || lower.includes('relique')) return 'Rune'
+  if (lower.includes('sac')) return '\u00c9quipement'
+  if (lower.includes('cape')) return '\u00c9quipement'
+  if (lower.includes('rune') || lower.includes('\u00e2me') || lower.includes('relique')) return 'Rune'
   if (lower.includes('potion')) return 'Potion'
   return 'Autre'
 }
 
 function getRenderId(dataProjectId: string): string {
-  // Most Data Project IDs match render IDs directly.
-  // Only a few items need remapping.
   const m = dataProjectId.match(/^(T\d+_|)(.+)$/)
   if (!m) return dataProjectId
   const tier = m[1] || ''
   const base = m[2]
-  const MAP: Record<string, string> = {
-    CLOTH: 'CLOTHITEM',
-    LEATHER: 'LEATHERITEM',
-  }
+  const MAP: Record<string, string> = { CLOTH: 'CLOTHITEM', LEATHER: 'LEATHERITEM' }
   return tier + (MAP[base] || base)
 }
+
+// ============================================================
+// Favorites hook (localStorage-backed)
+// ============================================================
+
+function useFavorites() {
+  const [favorites, setFavorites] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set()
+    try {
+      const stored = localStorage.getItem('albion-favorites')
+      return stored ? new Set(JSON.parse(stored) as string[]) : new Set()
+    } catch { return new Set() }
+  })
+
+  useEffect(() => {
+    try { localStorage.setItem('albion-favorites', JSON.stringify([...favorites])) } catch {}
+  }, [favorites])
+
+  const toggle = useCallback((itemId: string) => {
+    setFavorites(prev => {
+      const next = new Set(prev)
+      if (next.has(itemId)) { next.delete(itemId) } else { next.add(itemId) }
+      return next
+    })
+  }, [])
+
+  return { favorites, toggle }
+}
+
+// ============================================================
+// Generic sort hook
+// ============================================================
+
+function useSort<T>(items: T[], defaultKey?: string, defaultDir: 'asc' | 'desc' = 'desc') {
+  const [sortKey, setSortKey] = useState(defaultKey || '')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(defaultDir)
+
+  const toggleSort = useCallback((key: string) => {
+    setSortKey(prev => prev === key && sortDir === 'desc' ? '' : key)
+    setSortDir(prev => (sortKey === key && prev === 'asc') ? 'desc' : 'asc')
+  }, [sortKey, sortDir])
+
+  const sorted = useMemo(() => {
+    if (!sortKey) return items
+    return [...items].sort((a, b) => {
+      const aVal = (a as Record<string, unknown>)[sortKey]
+      const bVal = (b as Record<string, unknown>)[sortKey]
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDir === 'asc' ? aVal - bVal : bVal - aVal
+      }
+      const aStr = String(aVal ?? '')
+      const bStr = String(bVal ?? '')
+      return sortDir === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr)
+    })
+  }, [items, sortKey, sortDir])
+
+  return { sorted, sortKey, sortDir, toggleSort }
+}
+
+// ============================================================
+// Reusable Components
+// ============================================================
 
 function ItemIcon({ itemId, size = 32 }: { itemId: string; size?: number }) {
   const [error, setError] = useState(false)
@@ -128,12 +189,48 @@ function ItemIcon({ itemId, size = 32 }: { itemId: string; size?: number }) {
   )
 }
 
-// --- Components ---
+function FavoriteBtn({ itemId, isFav, onToggle }: { itemId: string; isFav: boolean; onToggle: (id: string) => void }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onToggle(itemId) }}
+      className="p-0.5 rounded hover:bg-muted/50 transition-colors"
+      title={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+    >
+      <Star className={`h-3.5 w-3.5 transition-colors ${isFav ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/40 hover:text-muted-foreground'}`} />
+    </button>
+  )
+}
+
+function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
+  if (!active) return <ArrowUpDown className="h-3 w-3 opacity-30" />
+  return dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+}
+
+function StaleWarning({ dateStr, threshold = 60 }: { dateStr: string | null; threshold?: number }) {
+  const { stale, minutes } = formatDataAge(dateStr)
+  if (!stale || minutes <= threshold) return null
+  return (
+    <span className="inline-flex items-center gap-0.5 text-amber-400" title={`Donn\u00e9es datant de ${Math.round(minutes / 60)}h - prix potentiellement obsol\u00e8te`}>
+      <AlertTriangle className="h-3 w-3" />
+    </span>
+  )
+}
+
+function DataAgeCell({ dateStr }: { dateStr: string | null }) {
+  const age = formatDataAge(dateStr)
+  return (
+    <span
+      className={`text-xs font-mono ${age.stale ? 'text-amber-400' : 'text-emerald-400'}`}
+      title={dateStr ? `Derni\u00e8re transaction: ${new Date(dateStr).toLocaleString('fr-FR')}` : undefined}
+    >
+      {age.text}
+    </span>
+  )
+}
 
 function DataQualityBadge({ quality }: { quality: DataQuality | null }) {
   if (!quality) return null
   const { apiAgeMinutes, coveragePercent, fetchDurationMs, stale, itemsWithData, totalItems, batchSize } = quality
-
   return (
     <div className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs border ${stale ? 'border-amber-500/40 bg-amber-500/10' : 'border-emerald-500/20 bg-emerald-500/5'}`}>
       {stale ? (
@@ -143,7 +240,7 @@ function DataQualityBadge({ quality }: { quality: DataQuality | null }) {
       )}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 min-w-0">
         <span className={stale ? 'text-amber-300 font-medium' : 'text-emerald-400 font-medium'}>
-          Dernière activité API : il y a {apiAgeMinutes}min
+          Derni\u00e8re activit\u00e9 API : il y a {apiAgeMinutes}min
         </span>
         <span className="text-muted-foreground">
           <Zap className="h-3 w-3 inline mr-1" />{fetchDurationMs}ms
@@ -152,7 +249,7 @@ function DataQualityBadge({ quality }: { quality: DataQuality | null }) {
           {itemsWithData}/{totalItems} items ({coveragePercent}%)
         </span>
         <span className="text-muted-foreground hidden sm:inline">
-          {batchSize} entrées
+          {batchSize} entr\u00e9es
         </span>
       </div>
     </div>
@@ -225,10 +322,10 @@ function StatCard({ icon: Icon, label, value, subtext, color }: { icon: React.El
           <div className={`p-2 rounded-lg ${color}`}>
             <Icon className="h-4 w-4" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
             <p className="text-xl font-bold font-mono">{value}</p>
-            {subtext && <p className="text-xs text-muted-foreground">{subtext}</p>}
+            {subtext && <p className="text-xs text-muted-foreground truncate">{subtext}</p>}
           </div>
         </div>
       </CardContent>
@@ -236,102 +333,90 @@ function StatCard({ icon: Icon, label, value, subtext, color }: { icon: React.El
   )
 }
 
-function TopSellingTable({ items }: { items: TopSellingItem[] }) {
+// ============================================================
+// Search bar
+// ============================================================
+
+function SearchBar({ value, onChange, count, total }: { value: string; onChange: (v: string) => void; count: number; total: number }) {
+  return (
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <input
+        type="text"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="Rechercher un item..."
+        className="w-full h-9 pl-9 pr-20 bg-muted/50 border border-border/50 rounded-lg text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-colors"
+      />
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-xs text-muted-foreground">
+        {value && <span className="font-mono text-primary font-medium">{count}/{total}</span>}
+        {value && (
+          <button onClick={() => onChange('')} className="hover:text-foreground transition-colors">
+            <span className="text-xs">\u2715</span>
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Filter toggle for favorites
+// ============================================================
+
+function FavoritesToggle({ showFavOnly, onToggle, favCount }: { showFavOnly: boolean; onToggle: () => void; favCount: number }) {
+  return (
+    <Button
+      variant={showFavOnly ? 'default' : 'outline'}
+      size="sm"
+      onClick={onToggle}
+      className="h-8 text-xs gap-1.5"
+    >
+      {showFavOnly ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+      <Star className={`h-3 w-3 ${showFavOnly ? 'fill-current' : ''}`} />
+      {favCount > 0 && <span>{favCount}</span>}
+      {showFavOnly ? 'Favoris' : 'Favoris'}
+    </Button>
+  )
+}
+
+// ============================================================
+// Tables with search, sort, favorites, stale warnings
+// ============================================================
+
+function TopSellingTable({ items, search, favorites, onToggleFav }: {
+  items: TopSellingItem[]; search: string; favorites: Set<string>; onToggleFav: (id: string) => void
+}) {
+  const query = search.toLowerCase()
+  const filtered = useMemo(() => {
+    let result = items
+    if (query) result = result.filter(i => i.name.toLowerCase().includes(query))
+    return result
+  }, [items, query])
+
+  const { sorted, sortKey, sortDir, toggleSort } = useSort(filtered, 'totalVolume')
+
   return (
     <div className="rounded-lg border">
       <Table className="min-w-[700px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent border-border/50">
+            <TableHead className="w-8 text-center"></TableHead>
             <TableHead className="w-8 text-center">#</TableHead>
-            <TableHead>Item</TableHead>
-            <TableHead className="hidden md:table-cell">Catégorie</TableHead>
-            <TableHead className="text-right">Prix Vente</TableHead>
-            <TableHead className="text-right hidden sm:table-cell">Prix Achat</TableHead>
-            <TableHead className="text-right hidden lg:table-cell">Prix Moyen</TableHead>
-            <TableHead className="hidden lg:table-cell">Meilleur Marché</TableHead>
-            <TableHead className="text-center hidden xl:table-cell">Dernière Tx</TableHead>
-            <TableHead className="text-center">Activité</TableHead>
+            <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('name')}>Item <SortIcon active={sortKey === 'name'} dir={sortDir} /></TableHead>
+            <TableHead className="hidden md:table-cell">Cat\u00e9gorie</TableHead>
+            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort('bestSellPrice')}>Prix Vente <SortIcon active={sortKey === 'bestSellPrice'} dir={sortDir} /></TableHead>
+            <TableHead className="text-right hidden sm:table-cell cursor-pointer select-none" onClick={() => toggleSort('bestBuyPrice')}>Prix Achat <SortIcon active={sortKey === 'bestBuyPrice'} dir={sortDir} /></TableHead>
+            <TableHead className="text-right hidden lg:table-cell cursor-pointer select-none" onClick={() => toggleSort('avgSellPrice')}>Prix Moyen <SortIcon active={sortKey === 'avgSellPrice'} dir={sortDir} /></TableHead>
+            <TableHead className="hidden lg:table-cell">Meilleur March\u00e9</TableHead>
+            <TableHead className="text-center hidden xl:table-cell">Derni\u00e8re Tx</TableHead>
+            <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort('totalVolume')}>Activit\u00e9 <SortIcon active={sortKey === 'totalVolume'} dir={sortDir} /></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item, idx) => {
-            const age = formatDataAge(item.lastSellDate || item.lastBuyDate)
-            return (
+          {sorted.map((item, idx) => (
             <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
-              <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
-              <TableCell className="max-w-[220px]">
-                <div className="flex items-center gap-2 min-w-0">
-                  <ItemIcon itemId={item.itemId} size={36} />
-                  <span className={`font-semibold truncate ${getTierColor(item.name)}`}>{item.name}</span>
-                </div>
-              </TableCell>
-              <TableCell className="hidden md:table-cell">
-                <Badge variant={getTierBadgeVariant(item.name)} className="text-xs">
-                  {getItemCategory(item.name)}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right font-mono text-emerald-400">
-                {item.bestSellPrice ? formatSilver(item.bestSellPrice) : '-'}
-              </TableCell>
-              <TableCell className="text-right font-mono text-amber-400 hidden sm:table-cell">
-                {item.bestBuyPrice ? formatSilver(item.bestBuyPrice) : '-'}
-              </TableCell>
-              <TableCell className="text-right font-mono hidden lg:table-cell">
-                {item.avgSellPrice ? formatSilver(item.avgSellPrice) : '-'}
-              </TableCell>
-              <TableCell className="hidden lg:table-cell">
-                {item.bestSellCity ? (
-                  <Badge variant="outline" className="text-xs font-normal">{item.bestSellCity}</Badge>
-                ) : '-'}
-              </TableCell>
-              <TableCell className="text-center hidden xl:table-cell">
-                <span className={`text-xs font-mono ${age.stale ? 'text-amber-400' : 'text-emerald-400'}`} title={item.lastSellDate ? `Dernière vente: ${new Date(item.lastSellDate).toLocaleString('fr-FR')}` : undefined}>
-                  {age.text}
-                </span>
-              </TableCell>
-              <TableCell className="text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <Activity className="h-3.5 w-3.5 text-primary" />
-                  <span className="font-mono text-sm">{item.totalVolume}</span>
-                </div>
-              </TableCell>
-            </TableRow>
-            )
-          })}
-          {items.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                Aucune donnée disponible. Patientez pendant le chargement...
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </div>
-  )
-}
-
-function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
-  return (
-    <div className="rounded-lg border">
-      <Table className="min-w-[600px]">
-        <TableHeader>
-          <TableRow className="hover:bg-transparent border-border/50">
-            <TableHead className="w-8 text-center">#</TableHead>
-            <TableHead>Item</TableHead>
-            <TableHead className="text-right">Black Market</TableHead>
-            <TableHead className="text-right hidden sm:table-cell">Source</TableHead>
-            <TableHead className="hidden md:table-cell">Ville Source</TableHead>
-            <TableHead className="hidden xl:table-cell">Dernière Tx</TableHead>
-            <TableHead className="text-right">Profit</TableHead>
-            <TableHead className="text-right">Marge</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((item, idx) => {
-            const age = formatDataAge(item.bmLastSellDate || item.sourceLastSellDate)
-            return (
-            <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
+              <TableCell className="text-center"><FavoriteBtn itemId={item.itemId} isFav={favorites.has(item.itemId)} onToggle={onToggleFav} /></TableCell>
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
               <TableCell className="max-w-[200px]">
                 <div className="flex items-center gap-2 min-w-0">
@@ -339,38 +424,28 @@ function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
                   <span className={`font-semibold truncate ${getTierColor(item.name)}`}>{item.name}</span>
                 </div>
               </TableCell>
-              <TableCell className="text-right font-mono text-amber-400">
-                {formatSilver(item.blackMarketPrice)}
-              </TableCell>
-              <TableCell className="text-right font-mono hidden sm:table-cell">
-                {formatSilver(item.sourcePrice)}
-              </TableCell>
               <TableCell className="hidden md:table-cell">
-                <Badge variant="outline" className="text-xs font-normal">{item.sourceCity}</Badge>
+                <Badge variant={getTierBadgeVariant(item.name)} className="text-xs">{getItemCategory(item.name)}</Badge>
               </TableCell>
-              <TableCell className="hidden xl:table-cell">
-                <span className={`text-xs font-mono ${age.stale ? 'text-amber-400' : 'text-emerald-400'}`} title={`BM: ${item.bmLastSellDate ? new Date(item.bmLastSellDate).toLocaleString('fr-FR') : '?'} | Source: ${item.sourceLastSellDate ? new Date(item.sourceLastSellDate).toLocaleString('fr-FR') : '?'}`}>
-                  {age.text}
-                </span>
+              <TableCell className="text-right font-mono text-emerald-400">{item.bestSellPrice ? formatSilver(item.bestSellPrice) : '-'}</TableCell>
+              <TableCell className="text-right font-mono text-amber-400 hidden sm:table-cell">{item.bestBuyPrice ? formatSilver(item.bestBuyPrice) : '-'}</TableCell>
+              <TableCell className="text-right font-mono hidden lg:table-cell">{item.avgSellPrice ? formatSilver(item.avgSellPrice) : '-'}</TableCell>
+              <TableCell className="hidden lg:table-cell">
+                {item.bestSellCity ? <Badge variant="outline" className="text-xs font-normal">{item.bestSellCity}</Badge> : '-'}
               </TableCell>
-              <TableCell className="text-right font-mono text-emerald-400">
-                +{formatSilver(item.profit)}
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex items-center justify-end gap-1">
-                  <ArrowUpRight className={`h-4 w-4 ${item.marginPercent > 30 ? 'text-emerald-400' : 'text-amber-400'}`} />
-                  <span className={`font-mono font-semibold ${item.marginPercent > 30 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                    +{item.marginPercent}%
-                  </span>
+              <TableCell className="text-center hidden xl:table-cell"><DataAgeCell dateStr={item.lastSellDate || item.lastBuyDate} /></TableCell>
+              <TableCell className="text-center">
+                <div className="flex items-center justify-center gap-1">
+                  <Activity className="h-3.5 w-3.5 text-primary" />
+                  <span className="font-mono text-sm">{item.totalVolume}</span>
                 </div>
               </TableCell>
             </TableRow>
-            )
-          })}
-          {items.length === 0 && (
+          ))}
+          {sorted.length === 0 && (
             <TableRow>
-              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                Aucune opportunité de profit trouvée sur le Black Market
+              <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                {query ? 'Aucun item ne correspond \u00e0 votre recherche' : 'Aucune donn\u00e9e disponible. Patientez pendant le chargement...'}
               </TableCell>
             </TableRow>
           )}
@@ -380,8 +455,85 @@ function BlackMarketTable({ items }: { items: BlackMarketItem[] }) {
   )
 }
 
-function TrendingChart({ items }: { items: TrendingItem[] }) {
-  const topItems = items.slice(0, 10)
+function BlackMarketTable({ items, search, favorites, onToggleFav }: {
+  items: BlackMarketItem[]; search: string; favorites: Set<string>; onToggleFav: (id: string) => void
+}) {
+  const query = search.toLowerCase()
+  const filtered = useMemo(() => {
+    let result = items
+    if (query) result = result.filter(i => i.name.toLowerCase().includes(query))
+    return result
+  }, [items, query])
+
+  const { sorted, sortKey, sortDir, toggleSort } = useSort(filtered, 'marginPercent')
+
+  return (
+    <div className="rounded-lg border">
+      <Table className="min-w-[650px]">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent border-border/50">
+            <TableHead className="w-8 text-center"></TableHead>
+            <TableHead className="w-8 text-center">#</TableHead>
+            <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('name')}>Item <SortIcon active={sortKey === 'name'} dir={sortDir} /></TableHead>
+            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort('blackMarketPrice')}>Black Market <SortIcon active={sortKey === 'blackMarketPrice'} dir={sortDir} /></TableHead>
+            <TableHead className="text-right hidden sm:table-cell cursor-pointer select-none" onClick={() => toggleSort('sourcePrice')}>Source <SortIcon active={sortKey === 'sourcePrice'} dir={sortDir} /></TableHead>
+            <TableHead className="hidden md:table-cell">Ville Source</TableHead>
+            <TableHead className="hidden xl:table-cell">Derni\u00e8re Tx</TableHead>
+            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort('profit')}>Profit <SortIcon active={sortKey === 'profit'} dir={sortDir} /></TableHead>
+            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort('marginPercent')}>Marge <SortIcon active={sortKey === 'marginPercent'} dir={sortDir} /></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sorted.map((item, idx) => (
+            <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
+              <TableCell className="text-center"><FavoriteBtn itemId={item.itemId} isFav={favorites.has(item.itemId)} onToggle={onToggleFav} /></TableCell>
+              <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
+              <TableCell className="max-w-[200px]">
+                <div className="flex items-center gap-2 min-w-0">
+                  <ItemIcon itemId={item.itemId} size={36} />
+                  <span className={`font-semibold truncate ${getTierColor(item.name)}`}>{item.name}</span>
+                </div>
+              </TableCell>
+              <TableCell className="text-right font-mono text-amber-400">{formatSilver(item.blackMarketPrice)}</TableCell>
+              <TableCell className="text-right font-mono hidden sm:table-cell">{formatSilver(item.sourcePrice)}</TableCell>
+              <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal">{item.sourceCity}</Badge></TableCell>
+              <TableCell className="hidden xl:table-cell">
+                <div className="flex items-center gap-1">
+                  <DataAgeCell dateStr={item.bmLastSellDate || item.sourceLastSellDate} />
+                  <StaleWarning dateStr={item.bmLastSellDate || item.sourceLastSellDate} />
+                </div>
+              </TableCell>
+              <TableCell className="text-right font-mono text-emerald-400">+{formatSilver(item.profit)}</TableCell>
+              <TableCell className="text-right">
+                <div className="flex items-center justify-end gap-1">
+                  <StaleWarning dateStr={item.bmLastSellDate || item.sourceLastSellDate} />
+                  <ArrowUpRight className={`h-4 w-4 ${item.marginPercent > 30 ? 'text-emerald-400' : 'text-amber-400'}`} />
+                  <span className={`font-mono font-semibold ${item.marginPercent > 30 ? 'text-emerald-400' : 'text-amber-400'}`}>+{item.marginPercent}%</span>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+          {sorted.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                {query ? 'Aucun item ne correspond \u00e0 votre recherche' : 'Aucune opportunit\u00e9 de profit trouv\u00e9e sur le Black Market'}
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+
+function TrendingChart({ items, search }: { items: TrendingItem[]; search: string }) {
+  const query = search.toLowerCase()
+  const filtered = useMemo(() => {
+    if (!query) return items
+    return items.filter(i => i.name.toLowerCase().includes(query))
+  }, [items, query])
+
+  const topItems = filtered.slice(0, 10)
   const maxPrice = Math.max(...topItems.map(i => i.maxPrice), 1)
   return (
     <div className="space-y-6">
@@ -389,9 +541,9 @@ function TrendingChart({ items }: { items: TrendingItem[] }) {
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
-            Meilleurs Écarts de Prix Inter-Villes
+            Meilleurs \u00c9carts de Prix Inter-Villes
           </CardTitle>
-          <CardDescription>Items avec le plus grand écart de prix de vente entre villes (hors Black Market)</CardDescription>
+          <CardDescription>Items avec le plus grand \u00e9cart de prix de vente entre villes (hors Black Market)</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-1.5">
@@ -402,7 +554,7 @@ function TrendingChart({ items }: { items: TrendingItem[] }) {
                 <div key={item.itemId} className="group">
                   <div className="flex items-center justify-between text-xs mb-0.5">
                     <span className={`font-medium ${getTierColor(item.name)}`}>{item.name}</span>
-                    <span className="text-muted-foreground font-mono">{formatSilver(item.spread)} d'écart</span>
+                    <span className="text-muted-foreground font-mono">{formatSilver(item.spread)} d'\u00e9cart</span>
                   </div>
                   <div className="relative h-5 rounded-sm overflow-hidden bg-muted/50">
                     <div className="absolute top-0 left-0 h-full rounded-sm" style={{ width: `${maxPct}%`, backgroundColor: 'oklch(0.55 0.18 25)' }} title={`Max: ${formatSilver(item.maxPrice)}`} />
@@ -411,9 +563,7 @@ function TrendingChart({ items }: { items: TrendingItem[] }) {
                 </div>
               )
             })}
-            {topItems.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">Aucune tendance disponible</div>
-            )}
+            {topItems.length === 0 && <div className="text-center py-8 text-muted-foreground">Aucune tendance disponible</div>}
             <div className="flex items-center justify-center gap-4 pt-2 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: 'oklch(0.6 0.18 155)' }} /> Prix Min</span>
               <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: 'oklch(0.55 0.18 25)' }} /> Prix Max</span>
@@ -425,13 +575,13 @@ function TrendingChart({ items }: { items: TrendingItem[] }) {
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <Search className="h-4 w-4 text-primary" />
-            Détail des Tendances
+            D\u00e9tail des Tendances
           </CardTitle>
-          <CardDescription>Items les plus recherchés avec leurs prix par ville</CardDescription>
+          <CardDescription>Items les plus recherch\u00e9s avec leurs prix par ville</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-2">
-            {items.map((item) => (
+            {filtered.map((item) => (
               <div key={item.itemId} className="p-3 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -444,7 +594,7 @@ function TrendingChart({ items }: { items: TrendingItem[] }) {
                     <span className="text-muted-foreground">Moy: <span className="font-mono text-foreground">{formatSilver(item.avgPrice)}</span></span>
                     <span className="text-emerald-400">Min: <span className="font-mono">{formatSilver(item.minPrice)}</span></span>
                     <span className="text-red-400">Max: <span className="font-mono">{formatSilver(item.maxPrice)}</span></span>
-                    <span className="text-sky-400">Écart: <span className="font-mono">{formatSilver(item.spread)}</span></span>
+                    <span className="text-sky-400">\u00c9cart: <span className="font-mono">{formatSilver(item.spread)}</span></span>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -458,9 +608,7 @@ function TrendingChart({ items }: { items: TrendingItem[] }) {
                 </div>
               </div>
             ))}
-            {items.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">Aucune tendance disponible</div>
-            )}
+            {filtered.length === 0 && <div className="text-center py-8 text-muted-foreground">Aucune tendance disponible</div>}
           </div>
         </CardContent>
       </Card>
@@ -468,39 +616,69 @@ function TrendingChart({ items }: { items: TrendingItem[] }) {
   )
 }
 
-function FlipOpportunitiesTable({ items }: { items: FlipOpportunity[] }) {
+function FlipOpportunitiesTable({ items, search, favorites, onToggleFav }: {
+  items: FlipOpportunity[]; search: string; favorites: Set<string>; onToggleFav: (id: string) => void
+}) {
+  const query = search.toLowerCase()
+  const filtered = useMemo(() => {
+    let result = items
+    if (query) result = result.filter(i => i.name.toLowerCase().includes(query))
+    return result
+  }, [items, query])
+
+  const { sorted, sortKey, sortDir, toggleSort } = useSort(filtered, 'profit')
+
   return (
     <div className="rounded-lg border">
-      <Table className="min-w-[650px]">
+      <Table className="min-w-[700px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent border-border/50">
+            <TableHead className="w-8 text-center"></TableHead>
             <TableHead className="w-8 text-center">#</TableHead>
-            <TableHead>Item</TableHead>
-            <TableHead className="hidden md:table-cell">Acheter à</TableHead>
-            <TableHead className="text-right">Prix Achat</TableHead>
-            <TableHead className="hidden md:table-cell">Vendre à</TableHead>
-            <TableHead className="text-right">Prix Vente</TableHead>
-            <TableHead className="text-right">Profit</TableHead>
-            <TableHead className="text-right">Marge</TableHead>
+            <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('name')}>Item <SortIcon active={sortKey === 'name'} dir={sortDir} /></TableHead>
+            <TableHead className="hidden md:table-cell">Acheter \u00e0</TableHead>
+            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort('buyPrice')}>Prix Achat <SortIcon active={sortKey === 'buyPrice'} dir={sortDir} /></TableHead>
+            <TableHead className="hidden md:table-cell">Vendre \u00e0</TableHead>
+            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort('sellPrice')}>Prix Vente <SortIcon active={sortKey === 'sellPrice'} dir={sortDir} /></TableHead>
+            <TableHead className="hidden xl:table-cell">Fra\u00eecheur</TableHead>
+            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort('profit')}>Profit <SortIcon active={sortKey === 'profit'} dir={sortDir} /></TableHead>
+            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort('marginPercent')}>Marge <SortIcon active={sortKey === 'marginPercent'} dir={sortDir} /></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item, idx) => (
+          {sorted.map((item, idx) => (
             <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
+              <TableCell className="text-center"><FavoriteBtn itemId={item.itemId} isFav={favorites.has(item.itemId)} onToggle={onToggleFav} /></TableCell>
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
-              <TableCell className="max-w-[220px]"><div className="flex items-center gap-2 min-w-0"><ItemIcon itemId={item.itemId} size={40} /><span className={`font-semibold truncate ${getTierColor(item.name)}`}>{item.name}</span></div></TableCell>
+              <TableCell className="max-w-[200px]">
+                <div className="flex items-center gap-2 min-w-0">
+                  <ItemIcon itemId={item.itemId} size={36} />
+                  <span className={`font-semibold truncate ${getTierColor(item.name)}`}>{item.name}</span>
+                </div>
+              </TableCell>
               <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-sky-400 border-sky-500/30">{item.buyCity}</Badge></TableCell>
               <TableCell className="text-right font-mono text-amber-400">{formatSilver(item.buyPrice)}</TableCell>
               <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-emerald-400 border-emerald-500/30">{item.sellCity}</Badge></TableCell>
               <TableCell className="text-right font-mono text-emerald-400">{formatSilver(item.sellPrice)}</TableCell>
-              <TableCell className="text-right font-mono font-semibold text-emerald-400">+{formatSilver(item.profit)}</TableCell>
+              <TableCell className="hidden xl:table-cell">
+                <div className="flex items-center gap-1">
+                  <DataAgeCell dateStr={item.buyDate || item.sellDate} />
+                  <StaleWarning dateStr={item.buyDate || item.sellDate} />
+                </div>
+              </TableCell>
+              <TableCell className="text-right">
+                <div className="flex items-center justify-end gap-1">
+                  <StaleWarning dateStr={item.buyDate || item.sellDate} />
+                  <span className="font-mono font-semibold text-emerald-400">+{formatSilver(item.profit)}</span>
+                </div>
+              </TableCell>
               <TableCell className="text-right">
                 <span className={`font-mono font-semibold ${item.marginPercent > 20 ? 'text-emerald-400' : 'text-amber-400'}`}>+{item.marginPercent}%</span>
               </TableCell>
             </TableRow>
           ))}
-          {items.length === 0 && (
-            <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Aucune opportunité d'achat/revente détectée</TableCell></TableRow>
+          {sorted.length === 0 && (
+            <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">{query ? 'Aucun r\u00e9sultat' : 'Aucune opportunit\u00e9 d\'achat/revente d\u00e9tect\u00e9e'}</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
@@ -508,29 +686,42 @@ function FlipOpportunitiesTable({ items }: { items: FlipOpportunity[] }) {
   )
 }
 
-function RefineOpportunitiesTable({ items }: { items: RefineOpportunity[] }) {
+function RefineOpportunitiesTable({ items, search, favorites, onToggleFav }: {
+  items: RefineOpportunity[]; search: string; favorites: Set<string>; onToggleFav: (id: string) => void
+}) {
+  const query = search.toLowerCase()
+  const filtered = useMemo(() => {
+    let result = items
+    if (query) result = result.filter(i => i.name.toLowerCase().includes(query) || i.rawName.toLowerCase().includes(query))
+    return result
+  }, [items, query])
+
+  const { sorted, sortKey, sortDir, toggleSort } = useSort(filtered, 'marginPercent')
+
   return (
     <div className="rounded-lg border">
       <Table className="min-w-[900px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent border-border/50">
+            <TableHead className="w-8 text-center"></TableHead>
             <TableHead className="w-8 text-center">#</TableHead>
-            <TableHead>Produit Raffiné</TableHead>
-            <TableHead className="hidden lg:table-cell">Matière Première</TableHead>
+            <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('name')}>Produit Raffin\u00e9 <SortIcon active={sortKey === 'name'} dir={sortDir} /></TableHead>
+            <TableHead className="hidden lg:table-cell">Mati\u00e8re Premi\u00e8re</TableHead>
             <TableHead className="hidden md:table-cell">Ratio</TableHead>
-            <TableHead className="hidden md:table-cell">Acheter à</TableHead>
-            <TableHead className="text-right hidden sm:table-cell">Coût Brut</TableHead>
-            <TableHead className="hidden md:table-cell">Vendre à</TableHead>
-            <TableHead className="text-right">Profit</TableHead>
-            <TableHead className="text-right">Marge</TableHead>
+            <TableHead className="hidden md:table-cell">Acheter \u00e0</TableHead>
+            <TableHead className="text-right hidden sm:table-cell cursor-pointer select-none" onClick={() => toggleSort('costRaw')}>Co\u00fbt Brut <SortIcon active={sortKey === 'costRaw'} dir={sortDir} /></TableHead>
+            <TableHead className="hidden md:table-cell">Vendre \u00e0</TableHead>
+            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort('profit')}>Profit <SortIcon active={sortKey === 'profit'} dir={sortDir} /></TableHead>
+            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort('marginPercent')}>Marge <SortIcon active={sortKey === 'marginPercent'} dir={sortDir} /></TableHead>
             <TableHead className="hidden lg:table-cell text-center">Bonus</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item, idx) => (
+          {sorted.map((item, idx) => (
             <TableRow key={item.itemId} className="border-border/30 hover:bg-muted/50 transition-colors">
+              <TableCell className="text-center"><FavoriteBtn itemId={item.itemId} isFav={favorites.has(item.itemId)} onToggle={onToggleFav} /></TableCell>
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
-              <TableCell className="max-w-[220px]">
+              <TableCell className="max-w-[200px]">
                 <div className="flex items-center gap-2 min-w-0">
                   <ItemIcon itemId={item.itemId} size={36} />
                   <div className="min-w-0">
@@ -558,8 +749,8 @@ function RefineOpportunitiesTable({ items }: { items: RefineOpportunity[] }) {
               </TableCell>
             </TableRow>
           ))}
-          {items.length === 0 && (
-            <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Aucune opportunité de raffinage rentable détectée</TableCell></TableRow>
+          {sorted.length === 0 && (
+            <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">{query ? 'Aucun r\u00e9sultat' : 'Aucune opportunit\u00e9 de raffinage rentable d\u00e9tect\u00e9e'}</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
@@ -567,28 +758,46 @@ function RefineOpportunitiesTable({ items }: { items: RefineOpportunity[] }) {
   )
 }
 
-function TransportOpportunitiesTable({ items }: { items: TransportOpportunity[] }) {
+function TransportOpportunitiesTable({ items, search, favorites, onToggleFav }: {
+  items: TransportOpportunity[]; search: string; favorites: Set<string>; onToggleFav: (id: string) => void
+}) {
+  const query = search.toLowerCase()
+  const filtered = useMemo(() => {
+    let result = items
+    if (query) result = result.filter(i => i.name.toLowerCase().includes(query))
+    return result
+  }, [items, query])
+
+  const { sorted, sortKey, sortDir, toggleSort } = useSort(filtered, 'profit')
+
   return (
     <div className="rounded-lg border">
       <Table className="min-w-[750px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent border-border/50">
+            <TableHead className="w-8 text-center"></TableHead>
             <TableHead className="w-8 text-center">#</TableHead>
-            <TableHead>Ressource</TableHead>
+            <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('name')}>Ressource <SortIcon active={sortKey === 'name'} dir={sortDir} /></TableHead>
             <TableHead className="hidden md:table-cell">De</TableHead>
-            <TableHead className="text-right hidden sm:table-cell">Achat</TableHead>
+            <TableHead className="text-right hidden sm:table-cell cursor-pointer select-none" onClick={() => toggleSort('buyPrice')}>Achat <SortIcon active={sortKey === 'buyPrice'} dir={sortDir} /></TableHead>
             <TableHead className="hidden md:table-cell">Vers</TableHead>
-            <TableHead className="text-right hidden sm:table-cell">Vente</TableHead>
-            <TableHead className="text-right">Profit</TableHead>
-            <TableHead className="text-right">Marge</TableHead>
+            <TableHead className="text-right hidden sm:table-cell cursor-pointer select-none" onClick={() => toggleSort('sellPrice')}>Vente <SortIcon active={sortKey === 'sellPrice'} dir={sortDir} /></TableHead>
+            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort('profit')}>Profit <SortIcon active={sortKey === 'profit'} dir={sortDir} /></TableHead>
+            <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort('marginPercent')}>Marge <SortIcon active={sortKey === 'marginPercent'} dir={sortDir} /></TableHead>
             <TableHead className="hidden lg:table-cell">Route</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item, idx) => (
+          {sorted.map((item, idx) => (
             <TableRow key={`${item.itemId}-${item.fromCity}-${item.toCity}`} className="border-border/30 hover:bg-muted/50 transition-colors">
+              <TableCell className="text-center"><FavoriteBtn itemId={item.itemId} isFav={favorites.has(item.itemId)} onToggle={onToggleFav} /></TableCell>
               <TableCell className="text-center font-mono text-muted-foreground text-sm">{idx + 1}</TableCell>
-              <TableCell className="max-w-[220px]"><div className="flex items-center gap-2 min-w-0"><ItemIcon itemId={item.itemId} size={40} /><span className={`font-semibold truncate ${getTierColor(item.name)}`}>{item.name}</span></div></TableCell>
+              <TableCell className="max-w-[200px]">
+                <div className="flex items-center gap-2 min-w-0">
+                  <ItemIcon itemId={item.itemId} size={36} />
+                  <span className={`font-semibold truncate ${getTierColor(item.name)}`}>{item.name}</span>
+                </div>
+              </TableCell>
               <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-sky-400 border-sky-500/30">{item.fromCity}</Badge></TableCell>
               <TableCell className="text-right font-mono text-amber-400 hidden sm:table-cell">{formatSilver(item.buyPrice)}</TableCell>
               <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs font-normal text-emerald-400 border-emerald-500/30">{item.toCity}</Badge></TableCell>
@@ -606,8 +815,8 @@ function TransportOpportunitiesTable({ items }: { items: TransportOpportunity[] 
               </TableCell>
             </TableRow>
           ))}
-          {items.length === 0 && (
-            <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Aucune route de transport rentable détectée</TableCell></TableRow>
+          {sorted.length === 0 && (
+            <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">{query ? 'Aucun r\u00e9sultat' : 'Aucune route de transport rentable d\u00e9tect\u00e9e'}</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
@@ -623,23 +832,37 @@ function LoadingSkeleton() {
         <Skeleton className="h-20 rounded-lg" /><Skeleton className="h-20 rounded-lg" />
         <Skeleton className="h-20 rounded-lg" /><Skeleton className="h-20 rounded-lg" />
       </div>
+      <Skeleton className="h-10 rounded-lg" />
       <Skeleton className="h-64 rounded-lg" />
       <div className="space-y-2">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-12 rounded-lg" />)}</div>
     </div>
   )
 }
 
-// --- Main Page ---
+// ============================================================
+// Main Page
+// ============================================================
+
 export default function AlbionMarketTracker() {
   const { topSelling, blackMarket, trending, opportunities, gold, totalItemsTracked, dataQuality,
           lastUpdate, loading, fetching, connected, updateCount, refresh } = useAlbionData(10000)
 
+  const { favorites, toggle: toggleFav } = useFavorites()
+  const [search, setSearch] = useState('')
+  const [showFavOnly, setShowFavOnly] = useState(false)
+
   // Time ago ticker
   const [, setTick] = useState(0)
-  useEffect(() => {
-    const interval = setInterval(() => setTick(t => t + 1), 5000)
-    return () => clearInterval(interval)
-  }, [])
+  useEffect(() => { const interval = setInterval(() => setTick(t => t + 1), 5000); return () => clearInterval(interval) }, [])
+
+  // Filter by favorites
+  const isFavFilter = showFavOnly && favorites.size > 0
+  const filteredTopSelling = useMemo(() => isFavFilter ? topSelling.filter(i => favorites.has(i.itemId)) : topSelling, [topSelling, isFavFilter, favorites])
+  const filteredBlackMarket = useMemo(() => isFavFilter ? blackMarket.filter(i => favorites.has(i.itemId)) : blackMarket, [blackMarket, isFavFilter, favorites])
+  const filteredTrending = useMemo(() => isFavFilter ? trending.filter(i => favorites.has(i.itemId)) : trending, [trending, isFavFilter, favorites])
+  const filteredFlip = useMemo(() => isFavFilter ? opportunities.flip.filter(i => favorites.has(i.itemId)) : opportunities.flip, [opportunities.flip, isFavFilter, favorites])
+  const filteredRefine = useMemo(() => isFavFilter ? opportunities.refine.filter(i => favorites.has(i.itemId)) : opportunities.refine, [opportunities.refine, isFavFilter, favorites])
+  const filteredTransport = useMemo(() => isFavFilter ? opportunities.transport.filter(i => favorites.has(i.itemId)) : opportunities.transport, [opportunities.transport, isFavFilter, favorites])
 
   const avgBlackMarketMargin = blackMarket.length > 0
     ? Math.round(blackMarket.reduce((sum, i) => sum + i.marginPercent, 0) / blackMarket.length)
@@ -655,18 +878,18 @@ export default function AlbionMarketTracker() {
               <div className="p-2 rounded-lg bg-primary/20 border border-primary/30">
                 <ShoppingBag className="h-5 w-5 text-primary" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h1 className="text-lg sm:text-xl font-bold tracking-tight">
                   Albion Market <span className="text-primary">Tracker</span>
                 </h1>
                 <p className="text-xs text-muted-foreground hidden sm:block">
-                  Données en temps réel du marché &amp; black market
+                  Donn\u00e9es en temps r\u00e9el du march\u00e9 &amp; black market
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <LiveIndicator connected={connected} lastUpdate={lastUpdate} updateCount={updateCount} fetching={fetching} />
-              <Button variant="outline" size="icon" onClick={refresh} disabled={fetching} title="Rafraîchir">
+              <Button variant="outline" size="icon" onClick={refresh} disabled={fetching} title="Rafra\u00eechir" className="h-8 w-8">
                 <RefreshCw className={`h-4 w-4 ${fetching ? 'animate-spin' : ''}`} />
               </Button>
             </div>
@@ -675,88 +898,111 @@ export default function AlbionMarketTracker() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 space-y-6">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         <GoldTicker gold={gold} />
 
         {!loading && <DataQualityBadge quality={dataQuality} />}
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={BarChart3} label="Items Suivis" value={totalItemsTracked} subtext="sur tous les marchés" color="bg-primary/20 text-primary" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <StatCard icon={BarChart3} label="Items Suivis" value={totalItemsTracked} subtext="sur tous les march\u00e9s" color="bg-primary/20 text-primary" />
           <StatCard icon={TrendingUp} label="Top Ventes" value={topSelling.length} subtext="items les plus actifs" color="bg-emerald-500/20 text-emerald-400" />
-          <StatCard icon={Skull} label="Black Market" value={blackMarket.length} subtext="opportunités détectées" color="bg-red-500/20 text-red-400" />
-          <StatCard icon={Coins} label="Marge Moyenne" value={`${avgBlackMarketMargin}%`} subtext="marge bénéficiaire BM" color="bg-amber-500/20 text-amber-400" />
+          <StatCard icon={Skull} label="Black Market" value={blackMarket.length} subtext="opportunit\u00e9s d\u00e9tect\u00e9es" color="bg-red-500/20 text-red-400" />
+          <StatCard icon={Coins} label="Marge Moyenne" value={`${avgBlackMarketMargin}%`} subtext="marge b\u00e9n\u00e9ficiaire BM" color="bg-amber-500/20 text-amber-400" />
         </div>
 
         {loading ? (
           <LoadingSkeleton />
         ) : (
-          <Tabs defaultValue="market" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="market" className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /><span className="hidden sm:inline">Marché</span></TabsTrigger>
-              <TabsTrigger value="blackmarket" className="flex items-center gap-2"><Skull className="h-4 w-4" /><span className="hidden sm:inline">Black Market</span></TabsTrigger>
-              <TabsTrigger value="trending" className="flex items-center gap-2"><Activity className="h-4 w-4" /><span className="hidden sm:inline">Tendances</span></TabsTrigger>
-              <TabsTrigger value="opportunities" className="flex items-center gap-2"><Flame className="h-4 w-4" /><span className="hidden sm:inline">Opportunités</span></TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="market" className="space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold">Items les Plus Recherchés &amp; Vendus</h2>
-                <p className="text-sm text-muted-foreground">Classés par volume d'activité sur tous les marchés royaux</p>
+          <>
+            {/* Search & Filter Bar */}
+            <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+              <div className="flex-1">
+                <SearchBar
+                  value={search}
+                  onChange={setSearch}
+                  count={topSelling.length}
+                  total={totalItemsTracked}
+                />
               </div>
-              <div className="overflow-auto max-h-[55vh] rounded-lg"><TopSellingTable items={topSelling} /></div>
-            </TabsContent>
+              <FavoritesToggle
+                showFavOnly={showFavOnly}
+                onToggle={() => setShowFavOnly(v => !v)}
+                favCount={favorites.size}
+              />
+            </div>
 
-            <TabsContent value="blackmarket" className="space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold flex items-center gap-2"><Skull className="h-5 w-5 text-red-400" />Opportunités Black Market</h2>
-                <p className="text-sm text-muted-foreground">Acheter sur les marchés royaux et revendre au Black Market de Caerleon</p>
-              </div>
-              <div className="overflow-auto max-h-[55vh] rounded-lg"><BlackMarketTable items={blackMarket} /></div>
-            </TabsContent>
+            <Tabs defaultValue="market" className="space-y-4">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="market" className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /><span className="hidden sm:inline">March\u00e9</span></TabsTrigger>
+                <TabsTrigger value="blackmarket" className="flex items-center gap-2"><Skull className="h-4 w-4" /><span className="hidden sm:inline">Black Market</span></TabsTrigger>
+                <TabsTrigger value="trending" className="flex items-center gap-2"><Activity className="h-4 w-4" /><span className="hidden sm:inline">Tendances</span></TabsTrigger>
+                <TabsTrigger value="opportunities" className="flex items-center gap-2"><Flame className="h-4 w-4" /><span className="hidden sm:inline">Opportunit\u00e9s</span></TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="trending" className="space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold">Tendances du Marché</h2>
-                <p className="text-sm text-muted-foreground">Items les plus recherchés avec écarts de prix inter-villes</p>
-              </div>
-              <TrendingChart items={trending} />
-            </TabsContent>
-
-            <TabsContent value="opportunities">
-              <div className="overflow-auto max-h-[75vh] space-y-6 pr-1">
+              <TabsContent value="market" className="space-y-4">
                 <div>
-                  <h2 className="text-lg font-semibold flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-primary" />Achat / Revente Inter-Villes</h2>
-                  <p className="text-sm text-muted-foreground">Acheter au prix le plus bas dans une ville et revendre au prix d'achat le plus élevé dans une autre — classé par profit absolu</p>
+                  <h2 className="text-lg font-semibold">Items les Plus Recherch\u00e9s &amp; Vendus</h2>
+                  <p className="text-sm text-muted-foreground">Class\u00e9s par volume d'activit\u00e9 sur tous les march\u00e9s royaux</p>
                 </div>
-                <FlipOpportunitiesTable items={opportunities.flip} />
+                <div className="overflow-auto max-h-[55vh] rounded-lg">
+                  <TopSellingTable items={filteredTopSelling} search={search} favorites={favorites} onToggleFav={toggleFav} />
+                </div>
+              </TabsContent>
 
-                <div className="border-t border-border pt-6">
-                  <h2 className="text-lg font-semibold flex items-center gap-2"><Factory className="h-5 w-5 text-amber-400" />Meilleures Opportunités de Raffinage</h2>
-                  <p className="text-sm text-muted-foreground">Acheter des matières premières, les raffiner, et vendre le produit fini — les ratios T4-T6: 2:1, T7: 3:1, T8: 4:1</p>
+              <TabsContent value="blackmarket" className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold flex items-center gap-2"><Skull className="h-5 w-5 text-red-400" />Opportunit\u00e9s Black Market</h2>
+                  <p className="text-sm text-muted-foreground">Acheter sur les march\u00e9s royaux et revendre au Black Market de Caerleon</p>
                 </div>
-                <RefineOpportunitiesTable items={opportunities.refine} />
+                <div className="overflow-auto max-h-[55vh] rounded-lg">
+                  <BlackMarketTable items={filteredBlackMarket} search={search} favorites={favorites} onToggleFav={toggleFav} />
+                </div>
+              </TabsContent>
 
-                <div className="border-t border-border pt-6">
-                  <h2 className="text-lg font-semibold flex items-center gap-2"><Truck className="h-5 w-5 text-sky-400" />Meilleures Routes de Transport</h2>
-                  <p className="text-sm text-muted-foreground">Ressources et matériaux avec le plus gros écart de prix entre deux villes — idéal pour le transport de marchandises</p>
+              <TabsContent value="trending" className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold">Tendances du March\u00e9</h2>
+                  <p className="text-sm text-muted-foreground">Items les plus recherch\u00e9s avec \u00e9carts de prix inter-villes</p>
                 </div>
-                <TransportOpportunitiesTable items={opportunities.transport} />
-              </div>
-            </TabsContent>
-          </Tabs>
+                <TrendingChart items={filteredTrending} search={search} />
+              </TabsContent>
+
+              <TabsContent value="opportunities">
+                <div className="overflow-auto max-h-[75vh] space-y-6 pr-1">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-primary" />Achat / Revente Inter-Villes</h2>
+                    <p className="text-sm text-muted-foreground">Acheter au prix le plus bas dans une ville et revendre au prix d'achat le plus \u00e9lev\u00e9 dans une autre</p>
+                  </div>
+                  <FlipOpportunitiesTable items={filteredFlip} search={search} favorites={favorites} onToggleFav={toggleFav} />
+
+                  <div className="border-t border-border pt-6">
+                    <h2 className="text-lg font-semibold flex items-center gap-2"><Factory className="h-5 w-5 text-amber-400" />Meilleures Opportunit\u00e9s de Raffinage</h2>
+                    <p className="text-sm text-muted-foreground">Acheter des mati\u00e8res premi\u00e8res, les raffiner, et vendre le produit fini</p>
+                  </div>
+                  <RefineOpportunitiesTable items={filteredRefine} search={search} favorites={favorites} onToggleFav={toggleFav} />
+
+                  <div className="border-t border-border pt-6">
+                    <h2 className="text-lg font-semibold flex items-center gap-2"><Truck className="h-5 w-5 text-sky-400" />Meilleures Routes de Transport</h2>
+                    <p className="text-sm text-muted-foreground">Ressources et mat\u00e9riaux avec le plus gros \u00e9cart de prix entre deux villes</p>
+                  </div>
+                  <TransportOpportunitiesTable items={filteredTransport} search={search} favorites={favorites} onToggleFav={toggleFav} />
+                </div>
+              </TabsContent>
+            </Tabs>
+          </>
         )}
       </main>
 
       <footer className="border-t border-border/50 bg-background/80 backdrop-blur-xl mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4">
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 mb-3">
             <div className="flex items-start gap-2.5">
               <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
               <div className="text-xs text-amber-200/80">
-                <span className="font-semibold text-amber-400">Source des données :</span> Les prix affichés proviennent du{' '}
+                <span className="font-semibold text-amber-400">Source des donn\u00e9es :</span> Les prix affich\u00e9s proviennent du{' '}
                 <a href="https://www.albion-online-data.com/" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline font-medium">Albion Online Data Project</a>
-                , un projet <span className="font-semibold">communautaire</span> (bénévoles), et non de Sandbox Interactive.
-                Il n'existe aucune API officielle Albion Online. Les données peuvent avoir un délai et ne sont pas garanties en temps réel.
+                , un projet <span className="font-semibold">communautaire</span> (b\u00e9n\u00e9voles), et non de Sandbox Interactive.
+                Il n'existe aucune API officielle Albion Online. Les donn\u00e9es peuvent avoir un d\u00e9lai et ne sont pas garanties en temps r\u00e9el.
               </div>
             </div>
           </div>
@@ -766,7 +1012,7 @@ export default function AlbionMarketTracker() {
               Actualisation toutes les 10s
             </p>
             <p>
-              Albion Market Tracker &mdash; Non affilié à Sandbox Interactive
+              Albion Market Tracker &mdash; Non affili\u00e9 \u00e0 Sandbox Interactive
             </p>
           </div>
         </div>
